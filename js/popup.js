@@ -4,9 +4,11 @@ class PromptManager {
         this.currentSearchTerm = '';
         this.editingPromptId = null;
         this.variableValues = {};
+        this.variableDefaults = {};
         
         this.initializeElements();
         this.bindEvents();
+        this.loadVariableDefaults();
         this.loadPrompts();
     }
 
@@ -71,6 +73,24 @@ class PromptManager {
         });
 
         document.addEventListener('keydown', (e) => this.handleKeydown(e));
+    }
+
+    async loadVariableDefaults() {
+        try {
+            const result = await chrome.storage.local.get(['variable_defaults']);
+            this.variableDefaults = result.variable_defaults || {};
+        } catch (error) {
+            console.warn('변수 기본값 로딩 실패:', error);
+            this.variableDefaults = {};
+        }
+    }
+
+    async saveVariableDefaults() {
+        try {
+            await chrome.storage.local.set({ variable_defaults: this.variableDefaults });
+        } catch (error) {
+            console.warn('변수 기본값 저장 실패:', error);
+        }
     }
 
     async loadPrompts() {
@@ -350,7 +370,7 @@ class PromptManager {
 
     showVariableModal(prompt) {
         this.currentPrompt = prompt;
-        this.elements.variableInputs.innerHTML = getVariableInputHtml(prompt.variables);
+        this.elements.variableInputs.innerHTML = getVariableInputHtml(prompt.variables, this.variableDefaults);
         this.elements.variableModal.classList.add('show');
         
         const firstInput = this.elements.variableInputs.querySelector('input');
@@ -372,8 +392,16 @@ class PromptManager {
         const variableValues = {};
         
         this.currentPrompt.variables.forEach(variable => {
-            variableValues[variable] = parseVariableInput(formData.get(variable) || '');
+            const inputValue = parseVariableInput(formData.get(variable) || '');
+            const finalValue = inputValue.trim() || this.variableDefaults[variable] || '';
+            variableValues[variable] = finalValue;
+            
+            if (inputValue.trim()) {
+                this.variableDefaults[variable] = inputValue.trim();
+            }
         });
+
+        this.saveVariableDefaults();
 
         const finalContent = replaceVariables(this.currentPrompt.content, variableValues);
         const promptId = this.currentPrompt.id;

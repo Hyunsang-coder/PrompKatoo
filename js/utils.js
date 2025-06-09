@@ -239,19 +239,25 @@ function readFileAsText(file) {
     });
 }
 
-function getVariableInputHtml(variables) {
-    return variables.map(variable => `
-        <div class="variable-input-group">
-            <label for="var_${variable}">[${sanitizeHtml(variable)}]</label>
-            <input 
-                type="text" 
-                id="var_${variable}" 
-                name="${variable}" 
-                placeholder="값을 입력하세요..."
-                autocomplete="off"
-            >
-        </div>
-    `).join('');
+function getVariableInputHtml(variables, defaults = {}) {
+    return variables.map(variable => {
+        const defaultValue = defaults[variable] || '';
+        const placeholder = defaultValue ? `기본값: ${defaultValue}` : '값을 입력하세요...';
+        
+        return `
+            <div class="variable-input-group">
+                <label for="var_${variable}">[${sanitizeHtml(variable)}]</label>
+                <input 
+                    type="text" 
+                    id="var_${variable}" 
+                    name="${variable}" 
+                    value="${sanitizeHtml(defaultValue)}"
+                    placeholder="${sanitizeHtml(placeholder)}"
+                    autocomplete="off"
+                >
+            </div>
+        `;
+    }).join('');
 }
 
 function extractTextFromElement(element) {
