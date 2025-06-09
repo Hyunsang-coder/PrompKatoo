@@ -399,9 +399,10 @@ class PromptManager {
         
         variables.forEach(variable => {
             const defaultValue = this.variableDefaults[variable] || '';
-            const placeholder = defaultValue || `${variable}`;
+            const displayValue = defaultValue;
+            const placeholder = variable;
             
-            const variableHtml = `<span class="variable-inline"><span class="variable-label">${variable}</span><input type="text" class="variable-input" data-variable="${variable}" value="${sanitizeHtml(defaultValue)}" placeholder="${sanitizeHtml(placeholder)}" autocomplete="off"></span>`;
+            const variableHtml = `<span class="variable-inline"><input type="text" class="variable-input" data-variable="${variable}" data-original="${variable}" value="${sanitizeHtml(displayValue)}" placeholder="${sanitizeHtml(placeholder)}" autocomplete="off"></span>`;
             
             const regex = new RegExp(`\\[${escapeRegExp(variable)}\\]`, 'g');
             html = html.replace(regex, variableHtml);
@@ -411,8 +412,22 @@ class PromptManager {
         
         this.elements.promptContentEditable.querySelectorAll('.variable-input').forEach(input => {
             input.addEventListener('input', () => this.autoResizeInput(input));
+            input.addEventListener('focus', () => this.onVariableFocus(input));
+            input.addEventListener('blur', () => this.onVariableBlur(input));
             this.autoResizeInput(input);
         });
+    }
+
+    onVariableFocus(input) {
+        input.style.backgroundColor = 'white';
+        input.style.borderRadius = '4px';
+    }
+
+    onVariableBlur(input) {
+        if (!input.value.trim()) {
+            input.style.backgroundColor = 'transparent';
+            input.style.borderRadius = '0';
+        }
     }
 
     autoResizeInput(input) {

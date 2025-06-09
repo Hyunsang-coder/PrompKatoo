@@ -407,6 +407,10 @@ body {
     gap: 12px;
     justify-content: flex-end;
     margin-top: 24px;
+    padding: 16px 24px 24px 24px;
+    margin: 0 -24px -24px -24px;
+    border-top: 1px solid #f3f4f6;
+    background-color: #fafbfc;
 }
 
 .btn {
@@ -444,7 +448,7 @@ body {
 }
 
 .variable-content {
-    padding: 24px;
+    padding: 20px 24px;
 }
 
 .prompt-content-editable {
@@ -458,45 +462,39 @@ body {
 }
 
 .variable-inline {
-    display: inline;
+    display: inline-block;
     background-color: #ddd6fe;
     border: 1px solid #8b5cf6;
     border-radius: 4px;
-    padding: 1px 2px;
-    margin: 0 1px;
-    white-space: nowrap;
-}
-
-.variable-label {
-    background-color: #8b5cf6;
-    color: white;
-    padding: 2px 4px;
-    font-size: 11px;
-    font-weight: 600;
-    border-radius: 2px 0 0 2px;
-    margin-right: 2px;
+    padding: 2px 6px;
+    margin: 0 2px;
+    position: relative;
 }
 
 .variable-input {
     border: none;
     background: transparent;
-    padding: 2px 4px;
+    padding: 0;
     font-size: 16px;
     min-width: 20px;
     width: 20px;
     outline: none;
     font-family: inherit;
-    transition: width 0.1s ease;
+    transition: all 0.2s ease;
+    color: #5b21b6;
+    font-weight: 500;
 }
 
 .variable-input:focus {
     background-color: white;
-    border-radius: 0 2px 2px 0;
+    border-radius: 2px;
+    color: #1f2937;
 }
 
 .variable-input::placeholder {
-    color: #a78bfa;
+    color: #8b5cf6;
     font-style: italic;
+    font-weight: normal;
 }
 
 /* 토스트 */
