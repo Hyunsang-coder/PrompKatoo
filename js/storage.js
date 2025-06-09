@@ -36,9 +36,10 @@ class PromptStorage {
             }
             
             if (existingPrompts.length > 0) {
-                const migratedPrompts = existingPrompts.map(prompt => ({
+                const migratedPrompts = existingPrompts.map((prompt, index) => ({
                     ...prompt,
-                    folderId: prompt.folderId || 'home'
+                    folderId: prompt.folderId || 'home',
+                    order: prompt.order !== undefined ? prompt.order : index
                 }));
                 await chrome.storage.local.set({ [this.storageKey]: migratedPrompts });
             }
@@ -112,7 +113,8 @@ class PromptStorage {
                 createdAt: promptData.createdAt || Date.now(),
                 usageCount: promptData.usageCount || 0,
                 variables: extractVariables(promptData.content),
-                updatedAt: Date.now()
+                updatedAt: Date.now(),
+                order: promptData.order || Date.now() // Use timestamp as default order
             };
 
             prompts.push(newPrompt);
@@ -284,6 +286,34 @@ class PromptStorage {
         } catch (error) {
             console.error('프롬프트 이동 실패:', error);
             throw new Error('프롬프트를 이동할 수 없습니다.');
+        }
+    }
+
+    async reorderPrompts(folderId, promptIds) {
+        try {
+            const prompts = await this.getAllPrompts();
+            const folderPrompts = prompts.filter(p => p.folderId === folderId);
+            
+            // Validate that all provided IDs exist in the folder
+            const folderPromptIds = folderPrompts.map(p => p.id);
+            if (!promptIds.every(id => folderPromptIds.includes(id))) {
+                throw new Error('일부 프롬프트가 해당 폴더에 존재하지 않습니다.');
+            }
+            
+            // Update order values based on new sequence
+            promptIds.forEach((promptId, index) => {
+                const prompt = prompts.find(p => p.id === promptId);
+                if (prompt) {
+                    prompt.order = index;
+                    prompt.updatedAt = Date.now();
+                }
+            });
+            
+            await chrome.storage.local.set({ [this.storageKey]: prompts });
+            return true;
+        } catch (error) {
+            console.error('프롬프트 재정렬 실패:', error);
+            throw new Error('프롬프트 순서를 변경할 수 없습니다.');
         }
     }
 

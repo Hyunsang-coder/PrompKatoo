@@ -346,7 +346,7 @@ class FolderPromptManager {
                 );
             }
 
-            const sortedPrompts = sortPrompts(prompts, 'recent');
+            const sortedPrompts = this.sortPromptsForDisplay(prompts);
             this.renderPrompts(sortedPrompts);
         } catch (error) {
             console.error('프롬프트 로딩 실패:', error);
@@ -457,16 +457,80 @@ class FolderPromptManager {
         });
     }
 
-    // Drag and Drop Implementation
+    // Custom sorting for current folder view
+    sortPromptsForDisplay(prompts) {
+        if (this.currentSearchTerm || this.currentFilter === 'favorites') {
+            return sortPrompts(prompts, 'recent');
+        }
+        
+        // For folder view, sort by custom order first, then by creation date
+        return prompts.sort((a, b) => {
+            if (a.isFavorite !== b.isFavorite) {
+                return b.isFavorite - a.isFavorite;
+            }
+            if (a.order !== undefined && b.order !== undefined) {
+                return a.order - b.order;
+            }
+            return (b.createdAt || 0) - (a.createdAt || 0);
+        });
+    }
+
+    // Enhanced Drag and Drop Implementation
     setupPromptDragAndDrop(card) {
         card.addEventListener('dragstart', (e) => {
+            this.draggedCard = card;
             card.classList.add('dragging');
+            this.elements.promptsContainer.classList.add('drag-active');
+            
             e.dataTransfer.setData('text/plain', card.dataset.id);
             e.dataTransfer.effectAllowed = 'move';
+            
+            // Setup breadcrumb drop zones
+            this.setupBreadcrumbDropZones();
+            
+            // Create drop indicators
+            this.createDropIndicators();
         });
 
         card.addEventListener('dragend', () => {
+            this.draggedCard = null;
             card.classList.remove('dragging');
+            this.elements.promptsContainer.classList.remove('drag-active');
+            
+            // Clean up visual feedback
+            this.cleanupDragFeedback();
+        });
+
+        // Setup drag over for reordering
+        card.addEventListener('dragover', (e) => {
+            if (!this.draggedCard || this.draggedCard === card) return;
+            
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            const rect = card.getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+            const isTop = e.clientY < midY;
+            
+            this.showReorderFeedback(card, isTop);
+        });
+
+        card.addEventListener('dragleave', (e) => {
+            // Only clear feedback if we're actually leaving the card
+            if (!card.contains(e.relatedTarget)) {
+                this.clearReorderFeedback(card);
+            }
+        });
+
+        card.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (!this.draggedCard || this.draggedCard === card) return;
+            
+            const rect = card.getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+            const isTop = e.clientY < midY;
+            
+            this.reorderPromptCard(this.draggedCard, card, isTop);
         });
     }
 
@@ -503,6 +567,160 @@ class FolderPromptManager {
             console.error('프롬프트 이동 실패:', error);
             showToast('프롬프트를 이동할 수 없습니다.', 'error');
         }
+    }
+
+    // Drag & Drop Helper Methods
+    createDropIndicators() {
+        const cards = this.elements.promptsContainer.querySelectorAll('.prompt-card:not(.dragging)');
+        cards.forEach((card, index) => {
+            if (index === 0) {
+                const topIndicator = document.createElement('div');
+                topIndicator.className = 'drop-indicator drop-top';
+                card.parentNode.insertBefore(topIndicator, card);
+            }
+            
+            const bottomIndicator = document.createElement('div');
+            bottomIndicator.className = 'drop-indicator drop-bottom';
+            card.parentNode.insertBefore(bottomIndicator, card.nextSibling);
+        });
+    }
+
+    showReorderFeedback(targetCard, isTop) {
+        this.clearAllReorderFeedback();
+        
+        if (isTop) {
+            targetCard.classList.add('drag-over-top');
+            const indicator = targetCard.previousElementSibling;
+            if (indicator && indicator.classList.contains('drop-indicator')) {
+                indicator.classList.add('show');
+            }
+        } else {
+            targetCard.classList.add('drag-over-bottom');
+            const indicator = targetCard.nextElementSibling;
+            if (indicator && indicator.classList.contains('drop-indicator')) {
+                indicator.classList.add('show');
+            }
+        }
+    }
+
+    clearReorderFeedback(card) {
+        card.classList.remove('drag-over-top', 'drag-over-bottom');
+        const prevIndicator = card.previousElementSibling;
+        const nextIndicator = card.nextElementSibling;
+        
+        if (prevIndicator && prevIndicator.classList.contains('drop-indicator')) {
+            prevIndicator.classList.remove('show');
+        }
+        if (nextIndicator && nextIndicator.classList.contains('drop-indicator')) {
+            nextIndicator.classList.remove('show');
+        }
+    }
+
+    clearAllReorderFeedback() {
+        const cards = this.elements.promptsContainer.querySelectorAll('.prompt-card');
+        cards.forEach(card => {
+            card.classList.remove('drag-over-top', 'drag-over-bottom');
+        });
+        
+        const indicators = this.elements.promptsContainer.querySelectorAll('.drop-indicator');
+        indicators.forEach(indicator => {
+            indicator.classList.remove('show');
+        });
+    }
+
+    cleanupDragFeedback() {
+        this.clearAllReorderFeedback();
+        this.cleanupBreadcrumbDropZones();
+        
+        // Remove drop indicators
+        const indicators = this.elements.promptsContainer.querySelectorAll('.drop-indicator');
+        indicators.forEach(indicator => indicator.remove());
+    }
+
+    async reorderPromptCard(draggedCard, targetCard, insertBefore) {
+        try {
+            const cards = Array.from(this.elements.promptsContainer.querySelectorAll('.prompt-card:not(.dragging)'));
+            const draggedId = draggedCard.dataset.id;
+            const targetIndex = cards.indexOf(targetCard);
+            
+            // Get current order of all prompts in the folder
+            const allCards = Array.from(this.elements.promptsContainer.querySelectorAll('.prompt-card'));
+            const promptIds = [];
+            
+            allCards.forEach(card => {
+                if (card === draggedCard) return; // Skip the dragged card initially
+                
+                if (card === targetCard) {
+                    if (insertBefore) {
+                        promptIds.push(draggedId);
+                        promptIds.push(card.dataset.id);
+                    } else {
+                        promptIds.push(card.dataset.id);
+                        promptIds.push(draggedId);
+                    }
+                } else {
+                    promptIds.push(card.dataset.id);
+                }
+            });
+            
+            // If draggedCard wasn't inserted yet, add it at the end
+            if (!promptIds.includes(draggedId)) {
+                promptIds.push(draggedId);
+            }
+            
+            await promptStorage.reorderPrompts(this.currentFolderId, promptIds);
+            await this.loadCurrentView();
+            
+        } catch (error) {
+            console.error('프롬프트 재정렬 실패:', error);
+            showToast('프롬프트 순서를 변경할 수 없습니다.', 'error');
+        }
+    }
+
+    // Breadcrumb Drop Zone Setup
+    setupBreadcrumbDropZones() {
+        const breadcrumbItems = this.elements.breadcrumbContainer.querySelectorAll('.breadcrumb-item');
+        
+        breadcrumbItems.forEach(item => {
+            const folderId = item.dataset.folderId;
+            
+            item.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                
+                // Visual feedback
+                if (folderId === this.currentFolderId) {
+                    item.classList.add('drop-invalid');
+                } else {
+                    item.classList.add('drop-valid');
+                }
+            });
+            
+            item.addEventListener('dragleave', () => {
+                item.classList.remove('drop-valid', 'drop-invalid');
+            });
+            
+            item.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                
+                if (folderId === this.currentFolderId) {
+                    showToast('같은 폴더로는 이동할 수 없습니다.', 'error');
+                    return;
+                }
+                
+                const promptId = e.dataTransfer.getData('text/plain');
+                if (promptId) {
+                    await this.movePromptToFolder(promptId, folderId);
+                }
+            });
+        });
+    }
+
+    cleanupBreadcrumbDropZones() {
+        const breadcrumbItems = this.elements.breadcrumbContainer.querySelectorAll('.breadcrumb-item');
+        breadcrumbItems.forEach(item => {
+            item.classList.remove('drop-target', 'drop-valid', 'drop-invalid');
+        });
     }
 
     // Modal Management
