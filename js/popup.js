@@ -376,9 +376,29 @@ class PromptManager {
         });
 
         const finalContent = replaceVariables(this.currentPrompt.content, variableValues);
+        const promptId = this.currentPrompt.id;
         
         this.hideVariableModal();
-        await this.copyPromptToClipboard(finalContent, this.currentPrompt.id);
+        
+        try {
+            const success = await copyToClipboard(finalContent);
+            if (success) {
+                showToast('클립보드에 복사되었습니다.');
+                
+                promptStorage.incrementUsageCount(promptId).catch(error => {
+                    console.warn('사용 횟수 업데이트 실패:', error);
+                });
+                
+                this.loadPrompts().catch(error => {
+                    console.warn('프롬프트 목록 새로고침 실패:', error);
+                });
+            } else {
+                showToast('클립보드 복사에 실패했습니다.', 'error');
+            }
+        } catch (error) {
+            console.error('클립보드 복사 실패:', error);
+            showToast('클립보드 복사에 실패했습니다.', 'error');
+        }
     }
 
     handleSearch(searchTerm) {
