@@ -82,9 +82,9 @@
 
     <!-- 변수 입력 모달 -->
     <div class="modal" id="variableModal">
-        <div class="modal-content">
+        <div class="modal-content variable-modal-content">
             <div class="modal-header">
-                <h2>변수 입력</h2>
+                <h2 id="variableModalTitle">변수 입력</h2>
                 <button class="close-btn" id="closeVariableModalBtn" aria-label="모달 닫기">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -92,13 +92,15 @@
                     </svg>
                 </button>
             </div>
-            <form id="variableForm">
-                <div id="variableInputs"></div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" id="cancelVariableBtn">취소</button>
-                    <button type="submit" class="btn btn-primary">복사하기</button>
-                </div>
-            </form>
+            
+            <div class="variable-content">
+                <div class="prompt-content-editable" id="promptContentEditable"></div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" id="cancelVariableBtn">취소</button>
+                <button type="button" class="btn btn-primary" id="copyVariableBtn">복사하기</button>
+            </div>
         </div>
     </div>
 

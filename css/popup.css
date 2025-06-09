@@ -437,29 +437,66 @@ body {
     background-color: #e5e7eb;
 }
 
-/* 변수 입력 */
-.variable-input-group {
-    margin-bottom: 16px;
+/* 변수 모달 */
+.variable-modal-content {
+    max-width: 550px;
+    width: 90vw;
 }
 
-.variable-input-group label {
-    display: block;
-    margin-bottom: 4px;
-    font-weight: 500;
-    color: #4f46e5;
-    font-size: 13px;
+.variable-content {
+    padding: 24px;
 }
 
-.variable-input-group input {
-    width: 100%;
-    padding: 8px 12px;
-    border: 2px solid #e5e7eb;
-    border-radius: 6px;
-    font-size: 14px;
+.prompt-content-editable {
+    font-size: 16px;
+    line-height: 1.7;
+    background-color: #f8fafc;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    min-height: 120px;
 }
 
-.variable-input-group input:focus {
-    border-color: #4f46e5;
+.variable-inline {
+    display: inline;
+    background-color: #ddd6fe;
+    border: 1px solid #8b5cf6;
+    border-radius: 4px;
+    padding: 1px 2px;
+    margin: 0 1px;
+    white-space: nowrap;
+}
+
+.variable-label {
+    background-color: #8b5cf6;
+    color: white;
+    padding: 2px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 2px 0 0 2px;
+    margin-right: 2px;
+}
+
+.variable-input {
+    border: none;
+    background: transparent;
+    padding: 2px 4px;
+    font-size: 16px;
+    min-width: 20px;
+    width: 20px;
+    outline: none;
+    font-family: inherit;
+    transition: width 0.1s ease;
+}
+
+.variable-input:focus {
+    background-color: white;
+    border-radius: 0 2px 2px 0;
+}
+
+.variable-input::placeholder {
+    color: #a78bfa;
+    font-style: italic;
 }
 
 /* 토스트 */

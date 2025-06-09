@@ -32,10 +32,11 @@ class PromptManager {
             cancelBtn: document.getElementById('cancelBtn'),
             
             variableModal: document.getElementById('variableModal'),
-            variableForm: document.getElementById('variableForm'),
-            variableInputs: document.getElementById('variableInputs'),
+            variableModalTitle: document.getElementById('variableModalTitle'),
+            promptContentEditable: document.getElementById('promptContentEditable'),
             closeVariableModalBtn: document.getElementById('closeVariableModalBtn'),
             cancelVariableBtn: document.getElementById('cancelVariableBtn'),
+            copyVariableBtn: document.getElementById('copyVariableBtn'),
             
             toast: document.getElementById('toast'),
             toastMessage: document.getElementById('toastMessage')
@@ -60,9 +61,9 @@ class PromptManager {
         this.elements.promptTitle.addEventListener('input', (e) => this.updateCharCount(e.target));
         this.elements.promptContent.addEventListener('input', (e) => this.updateVariablesList(e.target.value));
 
-        this.elements.variableForm.addEventListener('submit', (e) => this.handleVariableSubmit(e));
         this.elements.closeVariableModalBtn.addEventListener('click', () => this.hideVariableModal());
         this.elements.cancelVariableBtn.addEventListener('click', () => this.hideVariableModal());
+        this.elements.copyVariableBtn.addEventListener('click', () => this.handleVariableCopy());
 
         this.elements.promptModal.addEventListener('click', (e) => {
             if (e.target === this.elements.promptModal) this.hidePromptModal();
@@ -370,11 +371,16 @@ class PromptManager {
 
     showVariableModal(prompt) {
         this.currentPrompt = prompt;
-        this.elements.variableInputs.innerHTML = getVariableInputHtml(prompt.variables, this.variableDefaults);
+        this.elements.variableModalTitle.textContent = `변수 입력 - ${prompt.title}`;
+        
+        this.renderPromptContent();
+        
         this.elements.variableModal.classList.add('show');
         
-        const firstInput = this.elements.variableInputs.querySelector('input');
-        if (firstInput) firstInput.focus();
+        const firstInput = this.elements.promptContentEditable.querySelector('.variable-input');
+        if (firstInput) {
+            setTimeout(() => firstInput.focus(), 100);
+        }
     }
 
     hideVariableModal() {
@@ -383,21 +389,65 @@ class PromptManager {
         this.variableValues = {};
     }
 
-    async handleVariableSubmit(e) {
-        e.preventDefault();
+    renderPromptContent() {
+        if (!this.currentPrompt) return;
         
+        const content = this.currentPrompt.content;
+        const variables = this.currentPrompt.variables;
+        
+        let html = sanitizeHtml(content);
+        
+        variables.forEach(variable => {
+            const defaultValue = this.variableDefaults[variable] || '';
+            const placeholder = defaultValue || `${variable}`;
+            
+            const variableHtml = `<span class="variable-inline"><span class="variable-label">${variable}</span><input type="text" class="variable-input" data-variable="${variable}" value="${sanitizeHtml(defaultValue)}" placeholder="${sanitizeHtml(placeholder)}" autocomplete="off"></span>`;
+            
+            const regex = new RegExp(`\\[${escapeRegExp(variable)}\\]`, 'g');
+            html = html.replace(regex, variableHtml);
+        });
+        
+        this.elements.promptContentEditable.innerHTML = html;
+        
+        this.elements.promptContentEditable.querySelectorAll('.variable-input').forEach(input => {
+            input.addEventListener('input', () => this.autoResizeInput(input));
+            this.autoResizeInput(input);
+        });
+    }
+
+    autoResizeInput(input) {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        context.font = '16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        
+        const text = input.value || input.placeholder;
+        const width = context.measureText(text).width;
+        
+        input.style.width = Math.max(20, width + 16) + 'px';
+    }
+
+    getVariableValues() {
+        const values = {};
+        if (!this.currentPrompt) return values;
+        
+        this.elements.promptContentEditable.querySelectorAll('.variable-input').forEach(input => {
+            const variable = input.dataset.variable;
+            const inputValue = input.value.trim();
+            const defaultValue = this.variableDefaults[variable] || '';
+            values[variable] = inputValue || defaultValue;
+        });
+        
+        return values;
+    }
+
+    async handleVariableCopy() {
         if (!this.currentPrompt) return;
 
-        const formData = new FormData(this.elements.variableForm);
-        const variableValues = {};
+        const variableValues = this.getVariableValues();
         
-        this.currentPrompt.variables.forEach(variable => {
-            const inputValue = parseVariableInput(formData.get(variable) || '');
-            const finalValue = inputValue.trim() || this.variableDefaults[variable] || '';
-            variableValues[variable] = finalValue;
-            
-            if (inputValue.trim()) {
-                this.variableDefaults[variable] = inputValue.trim();
+        Object.entries(variableValues).forEach(([variable, value]) => {
+            if (value.trim()) {
+                this.variableDefaults[variable] = value.trim();
             }
         });
 
