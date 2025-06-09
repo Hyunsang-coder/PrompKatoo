@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Manager</title>
+    <link rel="stylesheet" href="css/popup.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1 class="title">Prompt Manager</h1>
+            <button class="add-btn" id="addBtn" aria-label="새 프롬프트 추가">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </button>
+        </header>
+
+        <div class="search-section">
+            <div class="search-box">
+                <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="21 21l-4.35-4.35"></path>
+                </svg>
+                <input type="text" id="searchInput" placeholder="프롬프트 검색..." autocomplete="off">
+            </div>
+            <div class="filter-section">
+                <button class="filter-btn active" data-filter="all">전체</button>
+                <button class="filter-btn" data-filter="favorites">즐겨찾기</button>
+            </div>
+        </div>
+
+        <div class="prompts-container" id="promptsContainer">
+            <div class="empty-state" id="emptyState">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+                    <polyline points="14,2 14,8 20,8"></polyline>
+                </svg>
+                <h3>저장된 프롬프트가 없습니다</h3>
+                <p>새 프롬프트를 추가해보세요</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 프롬프트 추가/편집 모달 -->
+    <div class="modal" id="promptModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">새 프롬프트 추가</h2>
+                <button class="close-btn" id="closeModalBtn" aria-label="모달 닫기">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <form id="promptForm">
+                <div class="form-group">
+                    <label for="promptTitle">제목</label>
+                    <input type="text" id="promptTitle" maxlength="100" placeholder="프롬프트 제목을 입력하세요" required>
+                    <div class="char-count">
+                        <span id="titleCharCount">0</span>/100
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="promptContent">내용</label>
+                    <textarea id="promptContent" rows="6" placeholder="프롬프트 내용을 입력하세요. 변수는 [변수명] 형태로 입력하세요." required></textarea>
+                    <div class="variables-info" id="variablesInfo">
+                        <span class="variables-label">발견된 변수:</span>
+                        <span class="variables-list" id="variablesList">없음</span>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">취소</button>
+                    <button type="submit" class="btn btn-primary">저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 변수 입력 모달 -->
+    <div class="modal" id="variableModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>변수 입력</h2>
+                <button class="close-btn" id="closeVariableModalBtn" aria-label="모달 닫기">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <form id="variableForm">
+                <div id="variableInputs"></div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelVariableBtn">취소</button>
+                    <button type="submit" class="btn btn-primary">복사하기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 토스트 알림 -->
+    <div class="toast" id="toast">
+        <span id="toastMessage"></span>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/popup.js"></script>
+</body>
+</html>
