@@ -1,6 +1,50 @@
 class PromptStorage {
     constructor() {
         this.storageKey = 'prompt_manager_data';
+        this.foldersKey = 'prompt_manager_folders';
+        this.migrationKey = 'prompt_manager_migration_v2';
+        this.initializeStorage();
+    }
+
+    async initializeStorage() {
+        try {
+            const migration = await chrome.storage.local.get([this.migrationKey]);
+            if (!migration[this.migrationKey]) {
+                await this.migrateToFolderSystem();
+                await chrome.storage.local.set({ [this.migrationKey]: true });
+            }
+        } catch (error) {
+            console.error('Storage initialization failed:', error);
+        }
+    }
+
+    async migrateToFolderSystem() {
+        try {
+            const existingPrompts = await this.getAllPrompts();
+            const existingFolders = await this.getAllFolders();
+            
+            if (existingFolders.length === 0) {
+                const homeFolder = {
+                    id: 'home',
+                    name: 'Home',
+                    icon: '🏠',
+                    parentId: null,
+                    createdAt: Date.now(),
+                    color: null
+                };
+                await chrome.storage.local.set({ [this.foldersKey]: [homeFolder] });
+            }
+            
+            if (existingPrompts.length > 0) {
+                const migratedPrompts = existingPrompts.map(prompt => ({
+                    ...prompt,
+                    folderId: prompt.folderId || 'home'
+                }));
+                await chrome.storage.local.set({ [this.storageKey]: migratedPrompts });
+            }
+        } catch (error) {
+            console.error('Migration failed:', error);
+        }
     }
 
     async getAllPrompts() {
@@ -13,6 +57,46 @@ class PromptStorage {
         }
     }
 
+    async getPromptsByFolder(folderId) {
+        try {
+            const prompts = await this.getAllPrompts();
+            return prompts.filter(prompt => prompt.folderId === folderId);
+        } catch (error) {
+            console.error('폴더별 프롬프트 조회 실패:', error);
+            return [];
+        }
+    }
+
+    async getAllFolders() {
+        try {
+            const result = await chrome.storage.local.get([this.foldersKey]);
+            return result[this.foldersKey] || [];
+        } catch (error) {
+            console.error('폴더 로딩 실패:', error);
+            return [];
+        }
+    }
+
+    async getFolder(folderId) {
+        try {
+            const folders = await this.getAllFolders();
+            return folders.find(f => f.id === folderId) || null;
+        } catch (error) {
+            console.error('폴더 조회 실패:', error);
+            return null;
+        }
+    }
+
+    async getFoldersByParent(parentId) {
+        try {
+            const folders = await this.getAllFolders();
+            return folders.filter(folder => folder.parentId === parentId);
+        } catch (error) {
+            console.error('하위 폴더 조회 실패:', error);
+            return [];
+        }
+    }
+
     async savePrompt(promptData) {
         try {
             const prompts = await this.getAllPrompts();
@@ -21,6 +105,7 @@ class PromptStorage {
                 id: promptData.id || generateUUID(),
                 title: this.validateTitle(promptData.title),
                 content: this.validateContent(promptData.content),
+                folderId: promptData.folderId || 'home',
                 isFavorite: promptData.isFavorite || false,
                 createdAt: promptData.createdAt || Date.now(),
                 usageCount: promptData.usageCount || 0,
@@ -35,6 +120,39 @@ class PromptStorage {
         } catch (error) {
             console.error('프롬프트 저장 실패:', error);
             throw new Error('프롬프트를 저장할 수 없습니다.');
+        }
+    }
+
+    async saveFolder(folderData) {
+        try {
+            const folders = await this.getAllFolders();
+            
+            if (folderData.parentId && folderData.parentId !== 'home') {
+                const parent = await this.getFolder(folderData.parentId);
+                if (!parent) {
+                    throw new Error('상위 폴더를 찾을 수 없습니다.');
+                }
+                if (parent.parentId !== 'home' && parent.parentId !== null) {
+                    throw new Error('3단계 이상의 폴더 구조는 지원되지 않습니다.');
+                }
+            }
+            
+            const newFolder = {
+                id: folderData.id || generateUUID(),
+                name: this.validateFolderName(folderData.name),
+                icon: folderData.icon || '📁',
+                parentId: folderData.parentId || null,
+                createdAt: folderData.createdAt || Date.now(),
+                color: folderData.color || null
+            };
+
+            folders.push(newFolder);
+            await chrome.storage.local.set({ [this.foldersKey]: folders });
+            
+            return newFolder;
+        } catch (error) {
+            console.error('폴더 저장 실패:', error);
+            throw new Error(error.message || '폴더를 저장할 수 없습니다.');
         }
     }
 
@@ -70,6 +188,32 @@ class PromptStorage {
         }
     }
 
+    async updateFolder(id, updates) {
+        try {
+            const folders = await this.getAllFolders();
+            const index = folders.findIndex(f => f.id === id);
+            
+            if (index === -1) {
+                throw new Error('폴더를 찾을 수 없습니다.');
+            }
+            
+            if (updates.name !== undefined) {
+                updates.name = this.validateFolderName(updates.name);
+            }
+
+            folders[index] = {
+                ...folders[index],
+                ...updates
+            };
+
+            await chrome.storage.local.set({ [this.foldersKey]: folders });
+            return folders[index];
+        } catch (error) {
+            console.error('폴더 업데이트 실패:', error);
+            throw new Error('폴더를 업데이트할 수 없습니다.');
+        }
+    }
+
     async deletePrompt(id) {
         try {
             const prompts = await this.getAllPrompts();
@@ -84,6 +228,60 @@ class PromptStorage {
         } catch (error) {
             console.error('프롬프트 삭제 실패:', error);
             throw new Error('프롬프트를 삭제할 수 없습니다.');
+        }
+    }
+
+    async deleteFolder(id) {
+        try {
+            if (id === 'home') {
+                throw new Error('홈 폴더는 삭제할 수 없습니다.');
+            }
+            
+            const folders = await this.getAllFolders();
+            const folderToDelete = folders.find(f => f.id === id);
+            
+            if (!folderToDelete) {
+                throw new Error('폴더를 찾을 수 없습니다.');
+            }
+            
+            const subfolders = await this.getFoldersByParent(id);
+            const prompts = await this.getPromptsByFolder(id);
+            
+            const parentId = folderToDelete.parentId || 'home';
+            
+            if (subfolders.length > 0) {
+                for (const subfolder of subfolders) {
+                    await this.updateFolder(subfolder.id, { parentId });
+                }
+            }
+            
+            if (prompts.length > 0) {
+                for (const prompt of prompts) {
+                    await this.updatePrompt(prompt.id, { folderId: parentId });
+                }
+            }
+            
+            const filteredFolders = folders.filter(f => f.id !== id);
+            await chrome.storage.local.set({ [this.foldersKey]: filteredFolders });
+            
+            return true;
+        } catch (error) {
+            console.error('폴더 삭제 실패:', error);
+            throw new Error(error.message || '폴더를 삭제할 수 없습니다.');
+        }
+    }
+
+    async movePromptToFolder(promptId, targetFolderId) {
+        try {
+            const targetFolder = await this.getFolder(targetFolderId);
+            if (!targetFolder && targetFolderId !== 'home') {
+                throw new Error('대상 폴더를 찾을 수 없습니다.');
+            }
+            
+            return await this.updatePrompt(promptId, { folderId: targetFolderId });
+        } catch (error) {
+            console.error('프롬프트 이동 실패:', error);
+            throw new Error('프롬프트를 이동할 수 없습니다.');
         }
     }
 
@@ -125,9 +323,15 @@ class PromptStorage {
         }
     }
 
-    async searchPrompts(query) {
+    async searchPrompts(query, folderId = null) {
         try {
-            const prompts = await this.getAllPrompts();
+            let prompts;
+            if (folderId) {
+                prompts = await this.getPromptsByFolder(folderId);
+            } else {
+                prompts = await this.getAllPrompts();
+            }
+            
             if (!query.trim()) {
                 return prompts;
             }
@@ -141,6 +345,43 @@ class PromptStorage {
             console.error('프롬프트 검색 실패:', error);
             return [];
         }
+    }
+
+    async searchPromptsWithFolderInfo(query) {
+        try {
+            const prompts = await this.searchPrompts(query);
+            const folders = await this.getAllFolders();
+            
+            return prompts.map(prompt => {
+                const folder = folders.find(f => f.id === prompt.folderId);
+                return {
+                    ...prompt,
+                    folderPath: this.getFolderPath(folder, folders)
+                };
+            });
+        } catch (error) {
+            console.error('프롬프트 검색 (폴더 정보 포함) 실패:', error);
+            return [];
+        }
+    }
+
+    getFolderPath(folder, allFolders) {
+        if (!folder || folder.id === 'home') {
+            return 'Home';
+        }
+        
+        const path = [folder.name];
+        let current = folder;
+        
+        while (current.parentId && current.parentId !== 'home') {
+            const parent = allFolders.find(f => f.id === current.parentId);
+            if (!parent) break;
+            path.unshift(parent.name);
+            current = parent;
+        }
+        
+        path.unshift('Home');
+        return path.join(' > ');
     }
 
     async getFavoritePrompts() {
@@ -240,14 +481,33 @@ class PromptStorage {
         return trimmed;
     }
 
+    validateFolderName(name) {
+        if (!name || typeof name !== 'string') {
+            throw new Error('폴더명이 필요합니다.');
+        }
+        
+        const trimmed = name.trim();
+        if (trimmed.length === 0) {
+            throw new Error('폴더명을 입력해주세요.');
+        }
+        
+        if (trimmed.length > 50) {
+            throw new Error('폴더명은 50자 이하로 입력해주세요.');
+        }
+        
+        return trimmed;
+    }
+
     async getStorageStats() {
         try {
             const prompts = await this.getAllPrompts();
-            const totalSize = JSON.stringify(prompts).length;
+            const folders = await this.getAllFolders();
+            const totalSize = JSON.stringify({ prompts, folders }).length;
             const storageLimit = chrome.storage.local.QUOTA_BYTES || 5242880; // 5MB
             
             return {
                 promptCount: prompts.length,
+                folderCount: folders.length,
                 totalSize: totalSize,
                 usagePercentage: (totalSize / storageLimit * 100).toFixed(2),
                 favoriteCount: prompts.filter(p => p.isFavorite).length,
