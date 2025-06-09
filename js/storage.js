@@ -90,7 +90,9 @@ class PromptStorage {
     async getFoldersByParent(parentId) {
         try {
             const folders = await this.getAllFolders();
-            return folders.filter(folder => folder.parentId === parentId);
+            // Handle 'home' parentId by looking for null parentId
+            const targetParentId = parentId === 'home' ? null : parentId;
+            return folders.filter(folder => folder.parentId === targetParentId);
         } catch (error) {
             console.error('하위 폴더 조회 실패:', error);
             return [];
@@ -373,7 +375,7 @@ class PromptStorage {
         const path = [folder.name];
         let current = folder;
         
-        while (current.parentId && current.parentId !== 'home') {
+        while (current.parentId && current.parentId !== 'home' && current.parentId !== null) {
             const parent = allFolders.find(f => f.id === current.parentId);
             if (!parent) break;
             path.unshift(parent.name);

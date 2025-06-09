@@ -205,6 +205,10 @@ class FolderPromptManager {
             const path = [];
             while (currentFolder && currentFolder.id !== 'home') {
                 path.unshift(currentFolder);
+                // Handle null parentId (which means parent is home)
+                if (currentFolder.parentId === null) {
+                    break;
+                }
                 currentFolder = folders.find(f => f.id === currentFolder.parentId);
             }
             
