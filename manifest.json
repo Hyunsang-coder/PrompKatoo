@@ -4,16 +4,17 @@
   "version": "1.0.0",
   "description": "프롬프트를 저장하고 관리할 수 있는 Chrome Extension",
   "permissions": [
-    "storage"
+    "storage",
+    "sidePanel"
   ],
+  "background": {
+    "service_worker": "js/background.js"
+  },
   "action": {
-    "default_popup": "popup.html",
-    "default_title": "Prompt Manager",
-    "default_icon": {
-      "16": "images/icon16.png",
-      "48": "images/icon48.png",
-      "128": "images/icon128.png"
-    }
+    "default_title": "Open Prompt Manager"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
   },
   "icons": {
     "16": "images/icon16.png",
