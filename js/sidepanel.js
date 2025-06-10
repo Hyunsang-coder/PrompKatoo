@@ -296,13 +296,21 @@ class FolderPromptManager {
 
             this.elements.foldersContainer.style.display = 'block';
             
-            // Get prompt counts for each folder
+            // Get prompt counts for each folder and sort by order
             const foldersWithCounts = await Promise.all(
                 allFolders.map(async folder => {
                     const prompts = await promptStorage.getPromptsByFolder(folder.id);
                     return { ...folder, promptCount: prompts.length };
                 })
             );
+            
+            // Sort folders by order field (if it exists) or creation date
+            foldersWithCounts.sort((a, b) => {
+                if (a.order !== undefined && b.order !== undefined) {
+                    return a.order - b.order;
+                }
+                return (a.createdAt || 0) - (b.createdAt || 0);
+            });
 
             const folderGridHtml = `
                 <div class="folder-grid">
@@ -322,10 +330,10 @@ class FolderPromptManager {
         const promptText = folder.promptCount === 1 ? 'prompt' : 'prompts';
         
         return `
-            <div class="folder-card" data-folder-id="${folder.id}" draggable="false">
+            <div class="folder-card" data-folder-id="${folder.id}" draggable="true">
                 <div class="folder-actions">
                     <button class="folder-action-btn" data-action="context" data-folder-id="${folder.id}" aria-label="Options">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="1"></circle>
                             <circle cx="12" cy="5" r="1"></circle>
                             <circle cx="12" cy="19" r="1"></circle>
@@ -352,8 +360,11 @@ class FolderPromptManager {
                 }
             });
 
-            // Setup drag and drop for folders
+            // Setup drag and drop for folders (prompts moving into folders)
             this.setupFolderDragAndDrop(card);
+            
+            // Setup drag and drop for folder reordering
+            this.setupFolderReorderDragAndDrop(card);
         });
 
         // Context menu events
@@ -617,6 +628,172 @@ class FolderPromptManager {
                 await this.movePromptToFolder(promptId, targetFolderId);
             }
         });
+    }
+
+    setupFolderReorderDragAndDrop(folderCard) {
+        folderCard.addEventListener('dragstart', (e) => {
+            // Don't interfere with prompt drags
+            if (e.target !== folderCard) return;
+            
+            this.draggedFolder = folderCard;
+            folderCard.classList.add('dragging');
+            
+            // Get the folder grid container
+            const folderGrid = this.elements.foldersContainer.querySelector('.folder-grid');
+            if (folderGrid) {
+                folderGrid.classList.add('drag-active');
+            }
+            
+            e.dataTransfer.setData('text/plain', folderCard.dataset.folderId);
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        folderCard.addEventListener('dragend', () => {
+            if (this.draggedFolder) {
+                this.draggedFolder.classList.remove('dragging');
+                this.draggedFolder = null;
+            }
+            
+            // Clean up all drag feedback
+            this.cleanupFolderDragFeedback();
+        });
+
+        // Handle drag over for reordering
+        folderCard.addEventListener('dragover', (e) => {
+            if (!this.draggedFolder || this.draggedFolder === folderCard) return;
+            
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            const rect = folderCard.getBoundingClientRect();
+            const midX = rect.left + rect.width / 2;
+            const midY = rect.top + rect.height / 2;
+            
+            // Determine drop position based on grid layout
+            const isLeft = e.clientX < midX;
+            const isTop = e.clientY < midY;
+            
+            this.showFolderReorderFeedback(folderCard, isLeft, isTop);
+        });
+
+        folderCard.addEventListener('dragleave', (e) => {
+            if (!folderCard.contains(e.relatedTarget)) {
+                this.clearFolderReorderFeedback(folderCard);
+            }
+        });
+
+        folderCard.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (!this.draggedFolder || this.draggedFolder === folderCard) return;
+            
+            const rect = folderCard.getBoundingClientRect();
+            const midX = rect.left + rect.width / 2;
+            const midY = rect.top + rect.height / 2;
+            
+            const isLeft = e.clientX < midX;
+            const isTop = e.clientY < midY;
+            
+            this.reorderFolderCard(this.draggedFolder, folderCard, isLeft, isTop);
+        });
+    }
+
+    showFolderReorderFeedback(targetCard, isLeft, isTop) {
+        this.clearAllFolderReorderFeedback();
+        
+        // For grid layout, use horizontal positioning as primary indicator
+        if (isLeft) {
+            targetCard.classList.add('drag-over-left');
+        } else {
+            targetCard.classList.add('drag-over-right');
+        }
+        
+        // Add vertical feedback as secondary indicator
+        if (isTop) {
+            targetCard.classList.add('drag-over-top');
+        } else {
+            targetCard.classList.add('drag-over-bottom');
+        }
+    }
+
+    clearFolderReorderFeedback(card) {
+        card.classList.remove('drag-over-left', 'drag-over-right', 'drag-over-top', 'drag-over-bottom');
+    }
+
+    clearAllFolderReorderFeedback() {
+        const cards = this.elements.foldersContainer.querySelectorAll('.folder-card');
+        cards.forEach(card => {
+            this.clearFolderReorderFeedback(card);
+        });
+    }
+
+    cleanupFolderDragFeedback() {
+        this.clearAllFolderReorderFeedback();
+        
+        const folderGrid = this.elements.foldersContainer.querySelector('.folder-grid');
+        if (folderGrid) {
+            folderGrid.classList.remove('drag-active');
+        }
+    }
+
+    async reorderFolderCard(draggedCard, targetCard, insertLeft, insertTop) {
+        try {
+            const allCards = Array.from(this.elements.foldersContainer.querySelectorAll('.folder-card'));
+            const draggedId = draggedCard.dataset.folderId;
+            const targetIndex = allCards.indexOf(targetCard);
+            
+            // Create new order array
+            const folderIds = [];
+            
+            allCards.forEach((card, index) => {
+                if (card === draggedCard) return; // Skip dragged card initially
+                
+                if (card === targetCard) {
+                    // Insert based on position
+                    if (insertLeft || insertTop) {
+                        folderIds.push(draggedId);
+                        folderIds.push(card.dataset.folderId);
+                    } else {
+                        folderIds.push(card.dataset.folderId);
+                        folderIds.push(draggedId);
+                    }
+                } else {
+                    folderIds.push(card.dataset.folderId);
+                }
+            });
+            
+            // If draggedCard wasn't inserted yet, add it at the end
+            if (!folderIds.includes(draggedId)) {
+                folderIds.push(draggedId);
+            }
+            
+            await this.reorderFolders(folderIds);
+            await this.loadCurrentView();
+            
+        } catch (error) {
+            console.error('Failed to reorder folders:', error);
+            showToast('Unable to change folder order.', 'error');
+        }
+    }
+
+    async reorderFolders(folderIds) {
+        try {
+            const folders = await promptStorage.getAllFolders();
+            
+            // Update order values based on new sequence
+            folderIds.forEach((folderId, index) => {
+                const folder = folders.find(f => f.id === folderId);
+                if (folder && folder.id !== 'home') {
+                    folder.order = index;
+                    folder.updatedAt = Date.now();
+                }
+            });
+            
+            await chrome.storage.local.set({ 'prompt_manager_folders': folders });
+            return true;
+        } catch (error) {
+            console.error('Failed to reorder folders:', error);
+            throw new Error('Unable to change folder order.');
+        }
     }
 
     async movePromptToFolder(promptId, targetFolderId) {
