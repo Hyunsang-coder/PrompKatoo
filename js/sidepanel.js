@@ -1802,8 +1802,17 @@ class FolderPromptManager {
             
             // Show appropriate success message
             let message = 'Data imported successfully.';
-            if (importResult && importResult.totalSkippedDuplicates && importResult.totalSkippedDuplicates.length > 0) {
-                message = `Data imported successfully. ${importResult.totalSkippedDuplicates.length} duplicate(s) skipped.`;
+            if (importResult) {
+                const skippedPrompts = importResult.totalSkippedDuplicates ? importResult.totalSkippedDuplicates.length : 0;
+                const skippedFolders = importResult.totalSkippedFolders ? importResult.totalSkippedFolders.length : 0;
+                const totalSkipped = skippedPrompts + skippedFolders;
+                
+                if (totalSkipped > 0) {
+                    const details = [];
+                    if (skippedPrompts > 0) details.push(`${skippedPrompts} prompt(s)`);
+                    if (skippedFolders > 0) details.push(`${skippedFolders} folder(s)`);
+                    message = `Data imported successfully. ${details.join(' and ')} skipped as duplicate(s).`;
+                }
             }
             showToast(message);
             this.hideImportModal();
@@ -1843,6 +1852,7 @@ class FolderPromptManager {
             let importedFolders = [];
             let importedPrompts = [];
             let totalSkippedDuplicates = [];
+            let totalSkippedFolders = [];
             
             // Handle different data formats
             if (Array.isArray(data)) {
@@ -1859,8 +1869,9 @@ class FolderPromptManager {
                 // Import folders first with ID mapping
                 if (data.folders) {
                     console.log('📁 Processing', data.folders.length, 'folders');
-                    const result = await this.processFoldersWithMapping(data.folders, folderIdMapping);
-                    importedFolders = result.folders;
+                    const folderResult = await this.processFoldersWithMapping(data.folders, folderIdMapping, importMode);
+                    importedFolders = folderResult.folders;
+                    totalSkippedFolders = [...totalSkippedFolders, ...folderResult.skippedDuplicates];
                 }
                 
                 // Import prompts with updated folder IDs
@@ -1902,7 +1913,10 @@ class FolderPromptManager {
             
             console.log('🎯 Enhanced import process completed successfully');
             
-            return { totalSkippedDuplicates };
+            return { 
+                totalSkippedDuplicates,
+                totalSkippedFolders
+            };
             
         } catch (error) {
             console.error('❌ Enhanced import process failed:', error);
@@ -1950,7 +1964,7 @@ class FolderPromptManager {
         return { importedPrompts: validPrompts, skippedDuplicates };
     }
 
-    async processFoldersWithMapping(foldersData, folderIdMapping) {
+    async processFoldersWithMapping(foldersData, folderIdMapping, importMode = 'merge') {
         console.log('🗺️ Creating folder ID mapping...');
         const validFolders = [];
         
@@ -1973,20 +1987,25 @@ class FolderPromptManager {
             }
         }
         
-        // Flat structure: no parent relationships to maintain
+        // Flat structure: convert any hierarchical imports to flat and remove parent relationships
         const finalFolders = validFolders.map(folder => {
-            // Assign the new ID and remove temporary fields for flat structure
+            // Assign the new ID and remove parentId for flat structure (handles legacy hierarchical imports)
             const { originalId, parentId, ...cleanFolder } = folder;
             cleanFolder.id = folder.newId; // Assign the mapped ID
             return cleanFolder;
         });
         
+        let skippedDuplicates = [];
         if (finalFolders.length > 0) {
             console.log('💾 Batch saving', finalFolders.length, 'folders with validation...');
-            await promptStorage.batchSaveFoldersWithValidation(finalFolders);
+            const result = await promptStorage.batchSaveFoldersWithValidation(finalFolders, { mergeMode: importMode === 'merge' });
+            if (result.skippedDuplicates && result.skippedDuplicates.length > 0) {
+                console.log('⚠️ Skipped', result.skippedDuplicates.length, 'duplicate folders:', result.skippedDuplicates);
+                skippedDuplicates = result.skippedDuplicates;
+            }
         }
         
-        return { folders: finalFolders, mapping: folderIdMapping };
+        return { folders: finalFolders, mapping: folderIdMapping, skippedDuplicates };
     }
 
     async processPromptsWithMapping(promptsData, folderIdMapping, importMode = 'merge') {
@@ -2051,7 +2070,8 @@ class FolderPromptManager {
 
     async batchSaveFolders(foldersData) {
         console.log('📢 Using legacy batchSaveFolders, delegating to validated version...');
-        return await promptStorage.batchSaveFoldersWithValidation(foldersData);
+        const result = await promptStorage.batchSaveFoldersWithValidation(foldersData);
+        return result.importedFolders || result; // Handle both old and new return formats
     }
 
     // Export Methods

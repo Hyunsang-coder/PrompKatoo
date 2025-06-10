@@ -703,7 +703,7 @@ class PromptStorage {
         });
     }
 
-    // Duplicate detection helper
+    // Duplicate detection helpers
     isDuplicatePrompt(newPrompt, existingPrompts) {
         const newTitle = newPrompt.title.toLowerCase().trim();
         const newContent = newPrompt.content.toLowerCase().trim();
@@ -712,6 +712,16 @@ class PromptStorage {
             const existingTitle = existing.title.toLowerCase().trim();
             const existingContent = existing.content.toLowerCase().trim();
             return existingTitle === newTitle && existingContent === newContent;
+        });
+    }
+
+    isDuplicateFolder(newFolder, existingFolders) {
+        const newName = newFolder.name.toLowerCase().trim();
+        
+        return existingFolders.some(existing => {
+            const existingName = existing.name.toLowerCase().trim();
+            // In flat structure, only check name (no parentId to compare)
+            return existingName === newName;
         });
     }
 
@@ -810,20 +820,31 @@ class PromptStorage {
             const currentFolders = await this.getAllFolders();
             console.log('📊 Current folders in storage:', currentFolders.length);
 
-            // Validate and process folder data
-            const validatedFolders = foldersData.map(folderData => {
+            // Validate and process folder data with duplicate detection
+            const validatedFolders = [];
+            const skippedDuplicates = [];
+            const isMergeMode = options.mergeMode || false;
+            
+            for (const folderData of foldersData) {
                 const newFolder = {
                     id: folderData.id || generateUUID(), // Use existing ID if provided
                     name: this.validateFolderName(folderData.name),
                     icon: folderData.icon || '📁',
-                    parentId: folderData.parentId || null,
+                    // Remove parentId for flat structure - convert legacy hierarchical imports
                     createdAt: folderData.createdAt || Date.now(),
                     color: folderData.color || null
                 };
+                
+                // Check for duplicates in merge mode
+                if (isMergeMode && this.isDuplicateFolder(newFolder, currentFolders)) {
+                    console.log('⚠️ Skipping duplicate folder:', newFolder.name);
+                    skippedDuplicates.push(newFolder.name);
+                    continue;
+                }
 
                 console.log('✨ Created validated folder:', newFolder.name, 'with ID:', newFolder.id);
-                return newFolder;
-            });
+                validatedFolders.push(newFolder);
+            }
 
             // Combine and save
             const allFolders = [...currentFolders, ...validatedFolders];
@@ -836,7 +857,10 @@ class PromptStorage {
                         reject(new Error(`Storage save failed: ${chrome.runtime.lastError.message}`));
                     } else {
                         console.log('✅ Validated folder batch save completed successfully');
-                        resolve(validatedFolders);
+                        resolve({
+                            importedFolders: validatedFolders,
+                            skippedDuplicates: skippedDuplicates
+                        });
                     }
                 });
             });
