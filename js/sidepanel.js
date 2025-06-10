@@ -8,7 +8,7 @@ class FolderPromptManager {
         this.variableValues = {};
         this.variableDefaults = {};
         this.selectedIcon = '📁';
-        
+
         this.initializeElements();
         this.bindEvents();
         this.loadVariableDefaults();
@@ -20,20 +20,20 @@ class FolderPromptManager {
             // Header
             settingsBtn: document.getElementById('settingsBtn'),
             addBtn: document.getElementById('addBtn'),
-            
+
             // Breadcrumb
             breadcrumbNav: document.getElementById('breadcrumbNav'),
             breadcrumbContainer: document.querySelector('.breadcrumb-container'),
-            
+
             // Search
             searchInput: document.getElementById('searchInput'),
             filterBtns: document.querySelectorAll('.filter-btn'),
-            
+
             // Containers
             foldersContainer: document.getElementById('foldersContainer'),
             promptsContainer: document.getElementById('promptsContainer'),
             emptyState: document.getElementById('emptyState'),
-            
+
             // Dropdown and Import/Export
             settingsDropdown: document.getElementById('settingsDropdown'),
             exportBtn: document.getElementById('exportBtn'),
@@ -52,7 +52,7 @@ class FolderPromptManager {
             closeAddModalBtn: document.getElementById('closeAddModalBtn'),
             addPromptBtn: document.getElementById('addPromptBtn'),
             addFolderBtn: document.getElementById('addFolderBtn'),
-            
+
             // Prompt Modal
             promptModal: document.getElementById('promptModal'),
             modalTitle: document.getElementById('modalTitle'),
@@ -64,7 +64,7 @@ class FolderPromptManager {
             variablesList: document.getElementById('variablesList'),
             closeModalBtn: document.getElementById('closeModalBtn'),
             cancelBtn: document.getElementById('cancelBtn'),
-            
+
             // Folder Modal
             folderModal: document.getElementById('folderModal'),
             folderModalTitle: document.getElementById('folderModalTitle'),
@@ -74,7 +74,7 @@ class FolderPromptManager {
             iconSelector: document.getElementById('iconSelector'),
             closeFolderModalBtn: document.getElementById('closeFolderModalBtn'),
             cancelFolderBtn: document.getElementById('cancelFolderBtn'),
-            
+
             // Variable Modal
             variableModal: document.getElementById('variableModal'),
             variableModalTitle: document.getElementById('variableModalTitle'),
@@ -82,12 +82,12 @@ class FolderPromptManager {
             closeVariableModalBtn: document.getElementById('closeVariableModalBtn'),
             cancelVariableBtn: document.getElementById('cancelVariableBtn'),
             copyVariableBtn: document.getElementById('copyVariableBtn'),
-            
+
             // Context Menu
             contextMenu: document.getElementById('contextMenu'),
             editFolderItem: document.getElementById('editFolderItem'),
             deleteFolderItem: document.getElementById('deleteFolderItem'),
-            
+
             // Toast
             toast: document.getElementById('toast'),
             toastMessage: document.getElementById('toastMessage')
@@ -98,7 +98,7 @@ class FolderPromptManager {
         // Header events
         this.elements.settingsBtn.addEventListener('click', (e) => this.toggleSettingsDropdown(e));
         this.elements.addBtn.addEventListener('click', () => this.showAddModal());
-        
+
         // Export/Import events
         this.elements.exportBtn.addEventListener('click', () => this.handleExport());
         this.elements.importBtn.addEventListener('click', () => this.showImportModal());
@@ -106,7 +106,7 @@ class FolderPromptManager {
         this.elements.selectFileBtn.addEventListener('click', () => this.elements.fileInput.click());
         this.elements.cancelImportBtn.addEventListener('click', () => this.hideImportModal());
         this.elements.confirmImportBtn.addEventListener('click', () => this.handleImport());
-        
+
         // File handling events
         this.elements.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
         this.elements.fileDropZone.addEventListener('click', () => this.elements.fileInput.click());
@@ -118,12 +118,12 @@ class FolderPromptManager {
         this.elements.closeAddModalBtn.addEventListener('click', () => this.hideAddModal());
         this.elements.addPromptBtn.addEventListener('click', () => this.showPromptModal());
         this.elements.addFolderBtn.addEventListener('click', () => this.showFolderModal());
-        
+
         // Search events
-        this.elements.searchInput.addEventListener('input', 
+        this.elements.searchInput.addEventListener('input',
             debounce((e) => this.handleSearch(e.target.value), 300)
         );
-        
+
         this.elements.filterBtns.forEach(btn => {
             btn.addEventListener('click', (e) => this.handleFilterChange(e.target.dataset.filter));
         });
@@ -140,7 +140,7 @@ class FolderPromptManager {
         this.elements.closeFolderModalBtn.addEventListener('click', () => this.hideFolderModal());
         this.elements.cancelFolderBtn.addEventListener('click', () => this.hideFolderModal());
         this.elements.folderName.addEventListener('input', (e) => this.updateFolderCharCount(e.target));
-        
+
         // Icon selector events
         this.elements.iconSelector.addEventListener('click', (e) => {
             if (e.target.classList.contains('icon-option')) {
@@ -218,20 +218,20 @@ class FolderPromptManager {
     async loadCurrentView() {
         console.log('🔄 loadCurrentView() called');
         console.log('📍 Current folder ID:', this.currentFolderId);
-        
+
         try {
             console.log('🍞 Updating breadcrumb...');
             await this.updateBreadcrumb();
             console.log('✅ Breadcrumb updated');
-            
+
             console.log('📁 Loading folders...');
             await this.loadFolders();
             console.log('✅ Folders loaded');
-            
+
             console.log('📝 Loading prompts...');
             await this.loadPrompts();
             console.log('✅ Prompts loaded');
-            
+
             console.log('🎯 loadCurrentView() completed successfully');
         } catch (error) {
             console.error('❌ Failed to load current view:', error);
@@ -243,10 +243,10 @@ class FolderPromptManager {
         const folders = await promptStorage.getAllFolders();
         const breadcrumbItems = [];
         let currentFolder = folders.find(f => f.id === this.currentFolderId);
-        
+
         // Flat structure: always show Home > Current Folder
         breadcrumbItems.push({ id: 'home', name: 'Home', icon: '🏠' });
-        
+
         if (currentFolder && currentFolder.id !== 'home') {
             breadcrumbItems.push(currentFolder);
         }
@@ -254,7 +254,7 @@ class FolderPromptManager {
         const breadcrumbHtml = breadcrumbItems.map((item, index) => {
             const isActive = item.id === this.currentFolderId;
             const separator = index < breadcrumbItems.length - 1 ? '<span class="breadcrumb-separator">></span>' : '';
-            
+
             return `
                 <button class="breadcrumb-item ${isActive ? 'active' : ''}" data-folder-id="${item.id}">
                     <span class="breadcrumb-icon">${item.icon}</span>
@@ -285,9 +285,9 @@ class FolderPromptManager {
                 this.elements.foldersContainer.style.display = 'none';
                 return;
             }
-            
+
             const allFolders = await promptStorage.getFoldersByParent('home');
-            
+
             if (allFolders.length === 0) {
                 this.elements.foldersContainer.innerHTML = '';
                 this.elements.foldersContainer.style.display = 'none';
@@ -295,7 +295,7 @@ class FolderPromptManager {
             }
 
             this.elements.foldersContainer.style.display = 'block';
-            
+
             // Get prompt counts for each folder and sort by order
             const foldersWithCounts = await Promise.all(
                 allFolders.map(async folder => {
@@ -303,7 +303,7 @@ class FolderPromptManager {
                     return { ...folder, promptCount: prompts.length };
                 })
             );
-            
+
             // Sort folders by order field (if it exists) or creation date
             foldersWithCounts.sort((a, b) => {
                 if (a.order !== undefined && b.order !== undefined) {
@@ -328,7 +328,7 @@ class FolderPromptManager {
 
     createFolderCard(folder) {
         const promptText = folder.promptCount === 1 ? 'prompt' : 'prompts';
-        
+
         return `
             <div class="folder-card" data-folder-id="${folder.id}" draggable="true">
                 <div class="folder-actions">
@@ -351,7 +351,7 @@ class FolderPromptManager {
 
     bindFolderEvents() {
         const folderCards = this.elements.foldersContainer.querySelectorAll('.folder-card');
-        
+
         folderCards.forEach(card => {
             card.addEventListener('click', (e) => {
                 if (!e.target.closest('.folder-actions')) {
@@ -362,7 +362,7 @@ class FolderPromptManager {
 
             // Setup drag and drop for folders (prompts moving into folders)
             this.setupFolderDragAndDrop(card);
-            
+
             // Setup drag and drop for folder reordering
             this.setupFolderReorderDragAndDrop(card);
         });
@@ -379,11 +379,11 @@ class FolderPromptManager {
 
     async loadPrompts() {
         console.log('📝 loadPrompts() called - folder:', this.currentFolderId, 'filter:', this.currentFilter);
-        
+
         try {
             let prompts;
             const isHomeFolder = this.currentFolderId === 'home';
-            
+
             // New filtering logic based on context
             if (this.currentSearchTerm) {
                 console.log('🔍 Loading search results for:', this.currentSearchTerm);
@@ -393,7 +393,7 @@ class FolderPromptManager {
                 } else {
                     // Search within current folder only
                     const folderPrompts = await promptStorage.getPromptsByFolder(this.currentFolderId);
-                    prompts = folderPrompts.filter(prompt => 
+                    prompts = folderPrompts.filter(prompt =>
                         prompt.title.toLowerCase().includes(this.currentSearchTerm.toLowerCase()) ||
                         prompt.content.toLowerCase().includes(this.currentSearchTerm.toLowerCase())
                     );
@@ -445,7 +445,7 @@ class FolderPromptManager {
             // Apply search filter to favorites if both are active
             if (this.currentFilter === 'favorites' && this.currentSearchTerm) {
                 console.log('⭐🔍 Applying search filter to favorites...');
-                prompts = prompts.filter(prompt => 
+                prompts = prompts.filter(prompt =>
                     prompt.title.toLowerCase().includes(this.currentSearchTerm.toLowerCase()) ||
                     prompt.content.toLowerCase().includes(this.currentSearchTerm.toLowerCase())
                 );
@@ -465,10 +465,10 @@ class FolderPromptManager {
 
     renderPrompts(prompts) {
         console.log('🎨 renderPrompts() called with', prompts.length, 'prompts');
-        
+
         const folders = this.elements.foldersContainer.children.length > 0;
         console.log('📁 Folders container has', this.elements.foldersContainer.children.length, 'children');
-        
+
         if (prompts.length === 0 && !folders) {
             console.log('📋 No prompts and no folders - showing empty state');
             this.showEmptyState();
@@ -481,36 +481,36 @@ class FolderPromptManager {
 
         console.log('✅ Hiding empty state and rendering prompts');
         this.hideEmptyState();
-        
+
         console.log('🏗️ Creating HTML for', prompts.length, 'prompts');
         const promptsHtml = prompts.map(prompt => this.createPromptCard(prompt)).join('');
         console.log('📝 Generated HTML length:', promptsHtml.length);
-        
+
         console.log('🎯 Setting innerHTML for prompts container');
         this.elements.promptsContainer.innerHTML = promptsHtml;
-        
+
         console.log('🔗 Binding prompt events');
         this.bindPromptEvents();
-        
+
         console.log('✅ renderPrompts() completed');
     }
 
     createPromptCard(prompt) {
-        const highlightedTitle = this.currentSearchTerm ? 
+        const highlightedTitle = this.currentSearchTerm ?
             highlightText(prompt.title, this.currentSearchTerm) : prompt.title;
-        const highlightedContent = this.currentSearchTerm ? 
+        const highlightedContent = this.currentSearchTerm ?
             highlightText(prompt.content, this.currentSearchTerm) : prompt.content;
-        
-        const variablesHtml = prompt.variables.length > 0 ? 
+
+        const variablesHtml = prompt.variables.length > 0 ?
             `<div class="prompt-variables">
-                ${prompt.variables.map(variable => 
-                    `<span class="variable-tag">[${sanitizeHtml(variable)}]</span>`
-                ).join('')}
+                ${prompt.variables.map(variable =>
+                `<span class="variable-tag">[${sanitizeHtml(variable)}]</span>`
+            ).join('')}
             </div>` : '';
 
         // Show folder path in global home view or during search
         const showFolderPath = prompt.folderPath && (this.currentFolderId === 'home' || this.currentSearchTerm);
-        const folderPathHtml = showFolderPath ? 
+        const folderPathHtml = showFolderPath ?
             `<span class="folder-path">${sanitizeHtml(prompt.folderPath)}</span>` : '';
 
         return `
@@ -550,7 +550,7 @@ class FolderPromptManager {
 
     bindPromptEvents() {
         const promptCards = this.elements.promptsContainer.querySelectorAll('.prompt-card');
-        
+
         promptCards.forEach(card => {
             card.addEventListener('click', (e) => {
                 if (!e.target.closest('.prompt-actions')) {
@@ -574,11 +574,11 @@ class FolderPromptManager {
     // Custom sorting for current folder view
     sortPromptsForDisplay(prompts) {
         const isHomeFolder = this.currentFolderId === 'home';
-        
+
         if (this.currentSearchTerm || this.currentFilter === 'favorites' || isHomeFolder) {
             return sortPrompts(prompts, 'recent');
         }
-        
+
         // For specific folder view, sort by custom order first, then by creation date
         return prompts.sort((a, b) => {
             if (a.isFavorite !== b.isFavorite) {
@@ -597,13 +597,15 @@ class FolderPromptManager {
             this.draggedCard = card;
             card.classList.add('dragging');
             this.elements.promptsContainer.classList.add('drag-active');
-            
-            e.dataTransfer.setData('text/plain', card.dataset.id);
+
+            // Use specific data type for prompt moving
+            e.dataTransfer.setData('application/x-prompt-id', card.dataset.id);
+            e.dataTransfer.setData('text/plain', card.dataset.id); // Keep for compatibility
             e.dataTransfer.effectAllowed = 'move';
-            
+
             // Setup breadcrumb drop zones
             this.setupBreadcrumbDropZones();
-            
+
             // Create drop indicators
             this.createDropIndicators();
         });
@@ -612,7 +614,7 @@ class FolderPromptManager {
             this.draggedCard = null;
             card.classList.remove('dragging');
             this.elements.promptsContainer.classList.remove('drag-active');
-            
+
             // Clean up visual feedback
             this.cleanupDragFeedback();
         });
@@ -620,14 +622,14 @@ class FolderPromptManager {
         // Setup drag over for reordering
         card.addEventListener('dragover', (e) => {
             if (!this.draggedCard || this.draggedCard === card) return;
-            
+
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
-            
+
             const rect = card.getBoundingClientRect();
             const midY = rect.top + rect.height / 2;
             const isTop = e.clientY < midY;
-            
+
             this.showReorderFeedback(card, isTop);
         });
 
@@ -641,11 +643,11 @@ class FolderPromptManager {
         card.addEventListener('drop', (e) => {
             e.preventDefault();
             if (!this.draggedCard || this.draggedCard === card) return;
-            
+
             const rect = card.getBoundingClientRect();
             const midY = rect.top + rect.height / 2;
             const isTop = e.clientY < midY;
-            
+
             this.reorderPromptCard(this.draggedCard, card, isTop);
         });
     }
@@ -664,10 +666,12 @@ class FolderPromptManager {
         folderCard.addEventListener('drop', async (e) => {
             e.preventDefault();
             folderCard.classList.remove('drag-over');
-            
-            const promptId = e.dataTransfer.getData('text/plain');
+
+            // Check for prompt-specific data type to ensure we only handle prompt drops
+            const promptId = e.dataTransfer.getData('application/x-prompt-id');
             const targetFolderId = folderCard.dataset.folderId;
-            
+
+            // Only process if it's a prompt being dropped (not a folder)
             if (promptId && targetFolderId) {
                 await this.movePromptToFolder(promptId, targetFolderId);
             }
@@ -678,17 +682,19 @@ class FolderPromptManager {
         folderCard.addEventListener('dragstart', (e) => {
             // Don't interfere with prompt drags
             if (e.target !== folderCard) return;
-            
+
             this.draggedFolder = folderCard;
             folderCard.classList.add('dragging');
-            
+
             // Get the folder grid container
             const folderGrid = this.elements.foldersContainer.querySelector('.folder-grid');
             if (folderGrid) {
                 folderGrid.classList.add('drag-active');
             }
-            
-            e.dataTransfer.setData('text/plain', folderCard.dataset.folderId);
+
+            // Use specific data type for folder reordering
+            e.dataTransfer.setData('application/x-folder-id', folderCard.dataset.folderId);
+            e.dataTransfer.setData('text/plain', folderCard.dataset.folderId); // Keep for compatibility
             e.dataTransfer.effectAllowed = 'move';
         });
 
@@ -697,7 +703,7 @@ class FolderPromptManager {
                 this.draggedFolder.classList.remove('dragging');
                 this.draggedFolder = null;
             }
-            
+
             // Clean up all drag feedback
             this.cleanupFolderDragFeedback();
         });
@@ -705,18 +711,18 @@ class FolderPromptManager {
         // Handle drag over for reordering
         folderCard.addEventListener('dragover', (e) => {
             if (!this.draggedFolder || this.draggedFolder === folderCard) return;
-            
+
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
-            
+
             const rect = folderCard.getBoundingClientRect();
             const midX = rect.left + rect.width / 2;
             const midY = rect.top + rect.height / 2;
-            
+
             // Determine drop position based on grid layout
             const isLeft = e.clientX < midX;
             const isTop = e.clientY < midY;
-            
+
             this.showFolderReorderFeedback(folderCard, isLeft, isTop);
         });
 
@@ -729,28 +735,28 @@ class FolderPromptManager {
         folderCard.addEventListener('drop', (e) => {
             e.preventDefault();
             if (!this.draggedFolder || this.draggedFolder === folderCard) return;
-            
+
             const rect = folderCard.getBoundingClientRect();
             const midX = rect.left + rect.width / 2;
             const midY = rect.top + rect.height / 2;
-            
+
             const isLeft = e.clientX < midX;
             const isTop = e.clientY < midY;
-            
+
             this.reorderFolderCard(this.draggedFolder, folderCard, isLeft, isTop);
         });
     }
 
     showFolderReorderFeedback(targetCard, isLeft, isTop) {
         this.clearAllFolderReorderFeedback();
-        
+
         // For grid layout, use horizontal positioning as primary indicator
         if (isLeft) {
             targetCard.classList.add('drag-over-left');
         } else {
             targetCard.classList.add('drag-over-right');
         }
-        
+
         // Add vertical feedback as secondary indicator
         if (isTop) {
             targetCard.classList.add('drag-over-top');
@@ -772,7 +778,7 @@ class FolderPromptManager {
 
     cleanupFolderDragFeedback() {
         this.clearAllFolderReorderFeedback();
-        
+
         const folderGrid = this.elements.foldersContainer.querySelector('.folder-grid');
         if (folderGrid) {
             folderGrid.classList.remove('drag-active');
@@ -784,13 +790,13 @@ class FolderPromptManager {
             const allCards = Array.from(this.elements.foldersContainer.querySelectorAll('.folder-card'));
             const draggedId = draggedCard.dataset.folderId;
             const targetIndex = allCards.indexOf(targetCard);
-            
+
             // Create new order array
             const folderIds = [];
-            
+
             allCards.forEach((card, index) => {
                 if (card === draggedCard) return; // Skip dragged card initially
-                
+
                 if (card === targetCard) {
                     // Insert based on position
                     if (insertLeft || insertTop) {
@@ -804,15 +810,15 @@ class FolderPromptManager {
                     folderIds.push(card.dataset.folderId);
                 }
             });
-            
+
             // If draggedCard wasn't inserted yet, add it at the end
             if (!folderIds.includes(draggedId)) {
                 folderIds.push(draggedId);
             }
-            
+
             await this.reorderFolders(folderIds);
             await this.loadCurrentView();
-            
+
         } catch (error) {
             console.error('Failed to reorder folders:', error);
             showToast('Unable to change folder order.', 'error');
@@ -822,7 +828,7 @@ class FolderPromptManager {
     async reorderFolders(folderIds) {
         try {
             const folders = await promptStorage.getAllFolders();
-            
+
             // Update order values based on new sequence
             folderIds.forEach((folderId, index) => {
                 const folder = folders.find(f => f.id === folderId);
@@ -831,7 +837,7 @@ class FolderPromptManager {
                     folder.updatedAt = Date.now();
                 }
             });
-            
+
             await chrome.storage.local.set({ 'prompt_manager_folders': folders });
             return true;
         } catch (error) {
@@ -860,7 +866,7 @@ class FolderPromptManager {
                 topIndicator.className = 'drop-indicator drop-top';
                 card.parentNode.insertBefore(topIndicator, card);
             }
-            
+
             const bottomIndicator = document.createElement('div');
             bottomIndicator.className = 'drop-indicator drop-bottom';
             card.parentNode.insertBefore(bottomIndicator, card.nextSibling);
@@ -869,7 +875,7 @@ class FolderPromptManager {
 
     showReorderFeedback(targetCard, isTop) {
         this.clearAllReorderFeedback();
-        
+
         if (isTop) {
             targetCard.classList.add('drag-over-top');
             const indicator = targetCard.previousElementSibling;
@@ -889,7 +895,7 @@ class FolderPromptManager {
         card.classList.remove('drag-over-top', 'drag-over-bottom');
         const prevIndicator = card.previousElementSibling;
         const nextIndicator = card.nextElementSibling;
-        
+
         if (prevIndicator && prevIndicator.classList.contains('drop-indicator')) {
             prevIndicator.classList.remove('show');
         }
@@ -903,7 +909,7 @@ class FolderPromptManager {
         cards.forEach(card => {
             card.classList.remove('drag-over-top', 'drag-over-bottom');
         });
-        
+
         const indicators = this.elements.promptsContainer.querySelectorAll('.drop-indicator');
         indicators.forEach(indicator => {
             indicator.classList.remove('show');
@@ -913,7 +919,7 @@ class FolderPromptManager {
     cleanupDragFeedback() {
         this.clearAllReorderFeedback();
         this.cleanupBreadcrumbDropZones();
-        
+
         // Remove drop indicators
         const indicators = this.elements.promptsContainer.querySelectorAll('.drop-indicator');
         indicators.forEach(indicator => indicator.remove());
@@ -924,14 +930,14 @@ class FolderPromptManager {
             const cards = Array.from(this.elements.promptsContainer.querySelectorAll('.prompt-card:not(.dragging)'));
             const draggedId = draggedCard.dataset.id;
             const targetIndex = cards.indexOf(targetCard);
-            
+
             // Get current order of all prompts in the folder
             const allCards = Array.from(this.elements.promptsContainer.querySelectorAll('.prompt-card'));
             const promptIds = [];
-            
+
             allCards.forEach(card => {
                 if (card === draggedCard) return; // Skip the dragged card initially
-                
+
                 if (card === targetCard) {
                     if (insertBefore) {
                         promptIds.push(draggedId);
@@ -944,15 +950,15 @@ class FolderPromptManager {
                     promptIds.push(card.dataset.id);
                 }
             });
-            
+
             // If draggedCard wasn't inserted yet, add it at the end
             if (!promptIds.includes(draggedId)) {
                 promptIds.push(draggedId);
             }
-            
+
             await promptStorage.reorderPrompts(this.currentFolderId, promptIds);
             await this.loadCurrentView();
-            
+
         } catch (error) {
             console.error('Failed to reorder prompts:', error);
             showToast('Unable to change prompt order.', 'error');
@@ -962,14 +968,14 @@ class FolderPromptManager {
     // Breadcrumb Drop Zone Setup
     setupBreadcrumbDropZones() {
         const breadcrumbItems = this.elements.breadcrumbContainer.querySelectorAll('.breadcrumb-item');
-        
+
         breadcrumbItems.forEach(item => {
             const folderId = item.dataset.folderId;
-            
+
             item.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
-                
+
                 // Visual feedback
                 if (folderId === this.currentFolderId) {
                     item.classList.add('drop-invalid');
@@ -977,19 +983,19 @@ class FolderPromptManager {
                     item.classList.add('drop-valid');
                 }
             });
-            
+
             item.addEventListener('dragleave', () => {
                 item.classList.remove('drop-valid', 'drop-invalid');
             });
-            
+
             item.addEventListener('drop', async (e) => {
                 e.preventDefault();
-                
+
                 if (folderId === this.currentFolderId) {
                     showToast('Cannot move to the same folder.', 'error');
                     return;
                 }
-                
+
                 const promptId = e.dataTransfer.getData('text/plain');
                 if (promptId) {
                     await this.movePromptToFolder(promptId, folderId);
@@ -1063,20 +1069,20 @@ class FolderPromptManager {
     // Form Handlers
     async handlePromptSubmit(e) {
         e.preventDefault();
-        
+
         const title = this.elements.promptTitle.value.trim();
         const content = this.elements.promptContent.value.trim();
-        
+
         if (!title || !content) {
             showToast('Please enter both title and content.', 'error');
             return;
         }
 
         try {
-            const promptData = { 
-                title, 
-                content, 
-                folderId: this.currentFolderId 
+            const promptData = {
+                title,
+                content,
+                folderId: this.currentFolderId
             };
 
             if (this.editingPromptId) {
@@ -1086,7 +1092,7 @@ class FolderPromptManager {
                 await promptStorage.savePrompt(promptData);
                 showToast('Prompt saved successfully.');
             }
-            
+
             this.hidePromptModal();
             await this.loadCurrentView();
         } catch (error) {
@@ -1097,9 +1103,9 @@ class FolderPromptManager {
 
     async handleFolderSubmit(e) {
         e.preventDefault();
-        
+
         const name = this.elements.folderName.value.trim();
-        
+
         if (!name) {
             showToast('Please enter a folder name.', 'error');
             return;
@@ -1118,7 +1124,7 @@ class FolderPromptManager {
                 await promptStorage.saveFolder(folderData);
                 showToast('Folder created successfully.');
             }
-            
+
             this.hideFolderModal();
             await this.loadCurrentView();
         } catch (error) {
@@ -1183,10 +1189,10 @@ class FolderPromptManager {
             this.elements.modalTitle.textContent = 'Edit Prompt';
             this.elements.promptTitle.value = prompt.title;
             this.elements.promptContent.value = prompt.content;
-            
+
             this.updateCharCount(this.elements.promptTitle);
             this.updateVariablesList(prompt.content);
-            
+
             this.showPromptModal();
         } catch (error) {
             console.error('Failed to edit prompt:', error);
@@ -1212,10 +1218,10 @@ class FolderPromptManager {
     // Context Menu
     showContextMenu(event, folderId) {
         this.contextFolderId = folderId;
-        
+
         const contextMenu = this.elements.contextMenu;
         contextMenu.classList.add('show');
-        
+
         const rect = event.target.getBoundingClientRect();
         contextMenu.style.left = rect.left + 'px';
         contextMenu.style.top = (rect.bottom + 5) + 'px';
@@ -1237,13 +1243,13 @@ class FolderPromptManager {
             this.editingFolderId = this.contextFolderId;
             this.elements.folderModalTitle.textContent = 'Edit Folder';
             this.elements.folderName.value = folder.name;
-            
+
             // Select the current icon
             const iconOption = this.elements.iconSelector.querySelector(`[data-icon="${folder.icon}"]`);
             if (iconOption) {
                 this.selectIcon(iconOption);
             }
-            
+
             this.updateFolderCharCount(this.elements.folderName);
             this.hideContextMenu();
             this.showFolderModal();
@@ -1278,7 +1284,7 @@ class FolderPromptManager {
     handleFilterChange(filter) {
         this.elements.filterBtns.forEach(btn => btn.classList.remove('active'));
         document.querySelector(`[data-filter="${filter}"]`).classList.add('active');
-        
+
         this.currentFilter = filter;
         this.loadPrompts();
     }
@@ -1287,7 +1293,7 @@ class FolderPromptManager {
     updateCharCount(input) {
         const count = input.value.length;
         this.elements.titleCharCount.textContent = count;
-        
+
         if (count > 100) {
             this.elements.titleCharCount.style.color = '#ef4444';
         } else {
@@ -1298,7 +1304,7 @@ class FolderPromptManager {
     updateFolderCharCount(input) {
         const count = input.value.length;
         this.elements.folderNameCharCount.textContent = count;
-        
+
         if (count > 50) {
             this.elements.folderNameCharCount.style.color = '#ef4444';
         } else {
@@ -1347,7 +1353,7 @@ class FolderPromptManager {
                 this.hideSettingsDropdown();
             }
         }
-        
+
         if (e.ctrlKey || e.metaKey) {
             if (e.key === 'n') {
                 e.preventDefault();
@@ -1363,11 +1369,11 @@ class FolderPromptManager {
     showVariableModal(prompt) {
         this.currentPrompt = prompt;
         this.elements.variableModalTitle.textContent = `Enter Variables - ${prompt.title}`;
-        
+
         this.renderPromptContent();
-        
+
         this.elements.variableModal.classList.add('show');
-        
+
         const firstInput = this.elements.promptContentEditable.querySelector('.variable-input');
         if (firstInput) {
             setTimeout(() => firstInput.focus(), 100);
@@ -1382,25 +1388,25 @@ class FolderPromptManager {
 
     renderPromptContent() {
         if (!this.currentPrompt) return;
-        
+
         const content = this.currentPrompt.content;
         const variables = this.currentPrompt.variables;
-        
+
         let html = sanitizeHtml(content);
-        
+
         variables.forEach(variable => {
             const defaultValue = this.variableDefaults[variable] || '';
             const displayValue = defaultValue;
             const placeholder = variable;
-            
+
             const variableHtml = `<span class="variable-inline"><input type="text" class="variable-input" data-variable="${variable}" data-original="${variable}" value="${sanitizeHtml(displayValue)}" placeholder="${sanitizeHtml(placeholder)}" autocomplete="off"></span>`;
-            
+
             const regex = new RegExp(`\\[${escapeRegExp(variable)}\\]`, 'g');
             html = html.replace(regex, variableHtml);
         });
-        
+
         this.elements.promptContentEditable.innerHTML = html;
-        
+
         this.elements.promptContentEditable.querySelectorAll('.variable-input').forEach(input => {
             input.addEventListener('input', () => this.autoResizeInput(input));
             input.addEventListener('focus', () => this.onVariableFocus(input));
@@ -1425,24 +1431,24 @@ class FolderPromptManager {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         context.font = '16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-        
+
         const text = input.value || input.placeholder;
         const width = context.measureText(text).width;
-        
+
         input.style.width = Math.max(20, width + 16) + 'px';
     }
 
     getVariableValues() {
         const values = {};
         if (!this.currentPrompt) return values;
-        
+
         this.elements.promptContentEditable.querySelectorAll('.variable-input').forEach(input => {
             const variable = input.dataset.variable;
             const inputValue = input.value.trim();
             const defaultValue = this.variableDefaults[variable] || '';
             values[variable] = inputValue || defaultValue;
         });
-        
+
         return values;
     }
 
@@ -1450,7 +1456,7 @@ class FolderPromptManager {
         if (!this.currentPrompt) return;
 
         const variableValues = this.getVariableValues();
-        
+
         Object.entries(variableValues).forEach(([variable, value]) => {
             if (value.trim()) {
                 this.variableDefaults[variable] = value.trim();
@@ -1461,18 +1467,18 @@ class FolderPromptManager {
 
         const finalContent = replaceVariables(this.currentPrompt.content, variableValues);
         const promptId = this.currentPrompt.id;
-        
+
         this.hideVariableModal();
-        
+
         try {
             const success = await copyToClipboard(finalContent);
             if (success) {
                 showToast('Copied to clipboard.');
-                
+
                 promptStorage.incrementUsageCount(promptId).catch(error => {
                     console.warn('Failed to update usage count:', error);
                 });
-                
+
                 this.loadCurrentView().catch(error => {
                     console.warn('Failed to refresh prompt list:', error);
                 });
@@ -1504,18 +1510,18 @@ class FolderPromptManager {
     // Force complete UI refresh method
     async forceCompleteRefresh() {
         console.log('🔥 forceCompleteRefresh() - Performing complete UI reset and refresh');
-        
+
         try {
             // Clear current UI state
             console.log('🧹 Clearing current UI elements...');
             this.elements.foldersContainer.innerHTML = '';
             this.elements.promptsContainer.innerHTML = '';
             this.elements.breadcrumbContainer.innerHTML = '';
-            
+
             // Reset containers to initial state
             this.elements.foldersContainer.style.display = 'none';
             this.elements.emptyState.style.display = 'none';
-            
+
             console.log('📊 Fetching fresh data from storage...');
             // Verify we can read from storage
             const allPrompts = await promptStorage.getAllPrompts();
@@ -1525,11 +1531,11 @@ class FolderPromptManager {
                 folders: allFolders.length,
                 promptsInHome: allPrompts.filter(p => p.folderId === 'home').length
             });
-            
+
             // Force reload of current view with fresh data
             console.log('🔄 Loading fresh view...');
             await this.loadCurrentView();
-            
+
             console.log('✅ forceCompleteRefresh() completed');
         } catch (error) {
             console.error('❌ forceCompleteRefresh() failed:', error);
@@ -1588,11 +1594,11 @@ class FolderPromptManager {
     handleFileSelect(e) {
         console.log('📂 File input change event triggered');
         const file = e.target.files[0];
-        
+
         // Immediately clear the input value to allow re-selection of same file
         e.target.value = '';
         console.log('🔄 File input cleared immediately');
-        
+
         if (file) {
             console.log('📄 File selected:', file.name, 'Size:', file.size);
             this.processFile(file);
@@ -1619,7 +1625,7 @@ class FolderPromptManager {
         e.preventDefault();
         e.stopPropagation();
         this.elements.fileDropZone.classList.remove('dragover');
-        
+
         const files = e.dataTransfer.files;
         if (files.length > 0) {
             this.processFile(files[0]);
@@ -1628,7 +1634,7 @@ class FolderPromptManager {
 
     async processFile(file) {
         console.log('🔍 Processing file:', file.name, 'Type:', file.type, 'Size:', file.size);
-        
+
         if (!file.type.includes('json') && !file.name.endsWith('.json')) {
             console.error('❌ Invalid file type:', file.type);
             showToast('Only JSON files can be uploaded.', 'error');
@@ -1640,7 +1646,7 @@ class FolderPromptManager {
             const text = await this.readFileAsText(file);
             console.log('📄 File content length:', text.length);
             console.log('📄 File content preview:', text.substring(0, 200) + '...');
-            
+
             console.log('🔄 Parsing JSON...');
             const data = JSON.parse(text);
             console.log('✅ JSON parsed successfully:', data);
@@ -1651,11 +1657,11 @@ class FolderPromptManager {
                 promptCount: data.prompts ? data.prompts.length : 'N/A',
                 folderCount: data.folders ? data.folders.length : 'N/A'
             });
-            
+
             console.log('🔍 Validating import data...');
             const isValid = this.validateImportData(data);
             console.log('✅ Validation result:', isValid);
-            
+
             if (isValid) {
                 this.importData = data;
                 console.log('💾 Import data stored:', this.importData);
@@ -1682,17 +1688,17 @@ class FolderPromptManager {
 
     validateImportData(data) {
         console.log('🔍 Validating import data structure...');
-        
+
         if (!data) {
             console.error('❌ Data is null or undefined');
             return false;
         }
-        
+
         if (typeof data !== 'object') {
             console.error('❌ Data is not an object, type:', typeof data);
             return false;
         }
-        
+
         // Check for legacy format (array of prompts)
         if (Array.isArray(data)) {
             console.log('✅ Legacy format detected: array of prompts');
@@ -1709,23 +1715,23 @@ class FolderPromptManager {
             console.error('❌ Array items don\'t look like prompts');
             return false;
         }
-        
+
         // Check for new structured format
         const hasPrompts = data.prompts && Array.isArray(data.prompts);
         const hasFolders = data.folders && Array.isArray(data.folders);
-        
+
         console.log('📊 Structure check:', {
             hasPrompts,
             hasFolders,
             promptCount: hasPrompts ? data.prompts.length : 0,
             folderCount: hasFolders ? data.folders.length : 0
         });
-        
+
         if (hasPrompts || hasFolders) {
             console.log('✅ Valid structured format detected');
             return true;
         }
-        
+
         console.error('❌ Data doesn\'t match any expected format');
         console.log('Data keys:', Object.keys(data));
         return false;
@@ -1734,7 +1740,7 @@ class FolderPromptManager {
     async handleImport() {
         console.log('🚀 Starting import process...');
         console.log('⏰ Timestamp:', new Date().toISOString());
-        
+
         if (!this.importData) {
             console.error('❌ No import data available');
             showToast('No data to import.', 'error');
@@ -1749,7 +1755,7 @@ class FolderPromptManager {
             promptCount: this.importData.prompts ? this.importData.prompts.length : 'N/A',
             folderCount: this.importData.folders ? this.importData.folders.length : 'N/A'
         });
-        
+
         try {
             // Check current storage state before import
             const currentPrompts = await promptStorage.getAllPrompts();
@@ -1758,7 +1764,7 @@ class FolderPromptManager {
                 existingPrompts: currentPrompts.length,
                 existingFolders: currentFolders.length
             });
-            
+
             if (importMode === 'replace') {
                 console.log('🗑️ Clearing all existing data...');
                 await promptStorage.clearAllData();
@@ -1768,7 +1774,7 @@ class FolderPromptManager {
             console.log('💾 Importing data to storage...');
             const importResult = await this.importDataToStorage(this.importData, importMode);
             console.log('✅ Data imported to storage successfully');
-            
+
             // Check storage state after import
             const newPrompts = await promptStorage.getAllPrompts();
             const newFolders = await promptStorage.getAllFolders();
@@ -1778,35 +1784,35 @@ class FolderPromptManager {
                 promptTitles: newPrompts.map(p => p.title).slice(0, 3).join(', ') + (newPrompts.length > 3 ? '...' : ''),
                 folderNames: newFolders.filter(f => f.id !== 'home').map(f => f.name).slice(0, 3).join(', ')
             });
-            
+
             console.log('🧹 Clearing any cached state...');
             // Clear any cached state that might prevent refresh
             this.currentSearchTerm = '';
             this.currentFilter = 'all';
-            
+
             // Reset filter UI
             this.elements.searchInput.value = '';
             this.elements.filterBtns.forEach(btn => btn.classList.remove('active'));
             document.querySelector('[data-filter="all"]').classList.add('active');
-            
+
             // Small delay to ensure all storage operations are complete
             await new Promise(resolve => setTimeout(resolve, 300));
-            
+
             console.log('🏠 Forcing navigation to home folder...');
             // Force navigation to home to ensure we see imported data
             this.currentFolderId = 'home';
-            
+
             console.log('🔄 Performing complete UI refresh...');
             await this.forceCompleteRefresh();
             console.log('✅ Complete UI refresh finished');
-            
+
             // Show appropriate success message
             let message = 'Data imported successfully.';
             if (importResult) {
                 const skippedPrompts = importResult.totalSkippedDuplicates ? importResult.totalSkippedDuplicates.length : 0;
                 const skippedFolders = importResult.totalSkippedFolders ? importResult.totalSkippedFolders.length : 0;
                 const totalSkipped = skippedPrompts + skippedFolders;
-                
+
                 if (totalSkipped > 0) {
                     const details = [];
                     if (skippedPrompts > 0) details.push(`${skippedPrompts} prompt(s)`);
@@ -1816,7 +1822,7 @@ class FolderPromptManager {
             }
             showToast(message);
             this.hideImportModal();
-            
+
             console.log('🎉 Import process completed successfully');
             console.log('⏰ Completion timestamp:', new Date().toISOString());
         } catch (error) {
@@ -1831,41 +1837,41 @@ class FolderPromptManager {
     async importDataToStorage(data, importMode = 'merge') {
         console.log('📂 Starting enhanced import process...');
         console.log('⏰ Import timestamp:', new Date().toISOString());
-        
+
         try {
             // Validate storage is ready
             console.log('🔄 Waiting for storage sync...');
             await promptStorage.waitForStorageSync();
             console.log('✅ Storage sync confirmed');
-            
+
             // Pre-import data integrity check
             console.log('🔍 Pre-import integrity check...');
             const preImportValidation = await promptStorage.validateDataIntegrity();
             console.log('📊 Pre-import state:', preImportValidation.summary);
-            
+
             if (!preImportValidation.isValid) {
                 console.warn('⚠️ Pre-import validation issues found:', preImportValidation);
             }
-            
+
             // Create folder ID mapping for import process
             const folderIdMapping = new Map();
             let importedFolders = [];
             let importedPrompts = [];
             let totalSkippedDuplicates = [];
             let totalSkippedFolders = [];
-            
+
             // Handle different data formats
             if (Array.isArray(data)) {
                 console.log('📜 Legacy format detected: array of prompts');
                 console.log('📊 Processing', data.length, 'legacy prompts');
-                
+
                 const legacyResult = await this.processLegacyPrompts(data, importMode);
                 importedPrompts = legacyResult.importedPrompts;
                 totalSkippedDuplicates = [...totalSkippedDuplicates, ...legacyResult.skippedDuplicates];
-                
+
             } else if (data.prompts || data.folders) {
                 console.log('🏗️ New structured format detected');
-                
+
                 // Import folders first with ID mapping
                 if (data.folders) {
                     console.log('📁 Processing', data.folders.length, 'folders');
@@ -1873,7 +1879,7 @@ class FolderPromptManager {
                     importedFolders = folderResult.folders;
                     totalSkippedFolders = [...totalSkippedFolders, ...folderResult.skippedDuplicates];
                 }
-                
+
                 // Import prompts with updated folder IDs
                 if (data.prompts) {
                     console.log('📝 Processing', data.prompts.length, 'prompts');
@@ -1885,24 +1891,24 @@ class FolderPromptManager {
                 console.error('❌ Unknown data format:', data);
                 throw new Error('Unknown data format');
             }
-            
+
             // Post-import validation and verification
             console.log('🔍 Post-import integrity check...');
             await new Promise(resolve => setTimeout(resolve, 500)); // Small delay for storage to sync
-            
+
             const postImportValidation = await promptStorage.validateDataIntegrity();
             console.log('📊 Post-import state:', postImportValidation.summary);
-            
+
             if (!postImportValidation.isValid) {
                 console.error('❌ Post-import validation failed:', postImportValidation);
                 throw new Error('Import validation failed: ' + postImportValidation.folders.issues.concat(postImportValidation.prompts.issues).join(', '));
             }
-            
+
             // Verify the actual data is accessible
             console.log('🔍 Verifying imported data accessibility...');
             const allPrompts = await promptStorage.getAllPrompts();
             const allFolders = await promptStorage.getAllFolders();
-            
+
             console.log('✅ Import verification complete:', {
                 totalPrompts: allPrompts.length,
                 totalFolders: allFolders.length,
@@ -1910,14 +1916,14 @@ class FolderPromptManager {
                 importedFolders: importedFolders.length,
                 promptsInHome: allPrompts.filter(p => p.folderId === 'home').length
             });
-            
+
             console.log('🎯 Enhanced import process completed successfully');
-            
-            return { 
+
+            return {
                 totalSkippedDuplicates,
                 totalSkippedFolders
             };
-            
+
         } catch (error) {
             console.error('❌ Enhanced import process failed:', error);
             throw error;
@@ -1926,11 +1932,11 @@ class FolderPromptManager {
 
     async processLegacyPrompts(legacyData, importMode = 'merge') {
         const validPrompts = [];
-        
+
         for (const prompt of legacyData) {
             if (prompt.title && prompt.content) {
                 console.log('📋 Processing legacy prompt:', prompt.title);
-                
+
                 const promptData = {
                     title: prompt.title,
                     content: prompt.content,
@@ -1939,18 +1945,18 @@ class FolderPromptManager {
                     usageCount: prompt.usageCount || 0,
                     createdAt: prompt.createdAt || Date.now()
                 };
-                
+
                 // Add optional fields if they exist
                 if (prompt.order !== undefined) promptData.order = prompt.order;
                 if (prompt.updatedAt !== undefined) promptData.updatedAt = prompt.updatedAt;
                 if (prompt.variables !== undefined) promptData.variables = prompt.variables;
-                
+
                 validPrompts.push(promptData);
             } else {
                 console.warn('⚠️ Skipping invalid legacy prompt:', prompt);
             }
         }
-        
+
         let skippedDuplicates = [];
         if (validPrompts.length > 0) {
             console.log('💾 Batch saving', validPrompts.length, 'legacy prompts with validation...');
@@ -1960,33 +1966,33 @@ class FolderPromptManager {
                 skippedDuplicates = result.skippedDuplicates;
             }
         }
-        
+
         return { importedPrompts: validPrompts, skippedDuplicates };
     }
 
     async processFoldersWithMapping(foldersData, folderIdMapping, importMode = 'merge') {
         console.log('🗺️ Creating folder ID mapping...');
         const validFolders = [];
-        
+
         // First pass: create new IDs for all folders and build mapping
         for (const folder of foldersData) {
             if (folder.name && folder.id !== 'home') {
                 const newId = generateUUID();
                 folderIdMapping.set(folder.id, newId);
                 console.log('🔗 Folder ID mapping:', folder.id, '->', newId);
-                
+
                 const folderData = {
                     name: folder.name,
                     icon: folder.icon || '📁',
                     createdAt: folder.createdAt || Date.now()
                 };
-                
+
                 if (folder.color !== undefined) folderData.color = folder.color;
-                
+
                 validFolders.push({ ...folderData, originalId: folder.id, newId: newId });
             }
         }
-        
+
         // Flat structure: convert any hierarchical imports to flat and remove parent relationships
         const finalFolders = validFolders.map(folder => {
             // Assign the new ID and remove parentId for flat structure (handles legacy hierarchical imports)
@@ -1994,7 +2000,7 @@ class FolderPromptManager {
             cleanFolder.id = folder.newId; // Assign the mapped ID
             return cleanFolder;
         });
-        
+
         let skippedDuplicates = [];
         if (finalFolders.length > 0) {
             console.log('💾 Batch saving', finalFolders.length, 'folders with validation...');
@@ -2004,20 +2010,20 @@ class FolderPromptManager {
                 skippedDuplicates = result.skippedDuplicates;
             }
         }
-        
+
         return { folders: finalFolders, mapping: folderIdMapping, skippedDuplicates };
     }
 
     async processPromptsWithMapping(promptsData, folderIdMapping, importMode = 'merge') {
         console.log('🗺️ Processing prompts with folder ID mapping...');
         const validPrompts = [];
-        
+
         for (const prompt of promptsData) {
             if (prompt.title && prompt.content) {
                 console.log('📋 Processing prompt:', prompt.title);
-                
+
                 let folderId = prompt.folderId || 'home';
-                
+
                 // Map folder ID if it exists in our mapping
                 if (folderId !== 'home' && folderIdMapping.has(folderId)) {
                     const mappedFolderId = folderIdMapping.get(folderId);
@@ -2027,7 +2033,7 @@ class FolderPromptManager {
                     console.warn('⚠️ Folder ID not found in mapping, using home:', folderId);
                     folderId = 'home';
                 }
-                
+
                 const promptData = {
                     title: prompt.title,
                     content: prompt.content,
@@ -2036,18 +2042,18 @@ class FolderPromptManager {
                     usageCount: prompt.usageCount || 0,
                     createdAt: prompt.createdAt || Date.now()
                 };
-                
+
                 // Add optional fields if they exist
                 if (prompt.order !== undefined) promptData.order = prompt.order;
                 if (prompt.updatedAt !== undefined) promptData.updatedAt = prompt.updatedAt;
                 if (prompt.variables !== undefined) promptData.variables = prompt.variables;
-                
+
                 validPrompts.push(promptData);
             } else {
                 console.warn('⚠️ Skipping invalid prompt:', prompt);
             }
         }
-        
+
         let skippedDuplicates = [];
         if (validPrompts.length > 0) {
             console.log('💾 Batch saving', validPrompts.length, 'prompts with validation...');
@@ -2057,7 +2063,7 @@ class FolderPromptManager {
                 skippedDuplicates = result.skippedDuplicates;
             }
         }
-        
+
         return { importedPrompts: validPrompts, skippedDuplicates };
     }
 
@@ -2077,11 +2083,11 @@ class FolderPromptManager {
     // Export Methods
     async handleExport() {
         this.hideSettingsDropdown();
-        
+
         try {
             const allPrompts = await promptStorage.getAllPrompts();
             const allFolders = await promptStorage.getAllFolders();
-            
+
             const exportData = {
                 prompts: allPrompts,
                 folders: allFolders,
@@ -2089,14 +2095,14 @@ class FolderPromptManager {
                 version: '2.0',
                 structure: 'flat'
             };
-            
+
             const dataStr = JSON.stringify(exportData, null, 2);
             const blob = new Blob([dataStr], { type: 'application/json' });
-            
+
             const now = new Date();
             const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD format
             const filename = `pocket-prompt-backup-${dateStr}.json`;
-            
+
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -2105,7 +2111,7 @@ class FolderPromptManager {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            
+
             showToast('Data exported successfully.');
         } catch (error) {
             console.error('Failed to export data:', error);
