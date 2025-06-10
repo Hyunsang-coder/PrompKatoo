@@ -9,7 +9,14 @@
 <body>
     <div class="container">
         <header class="header">
-            <h1 class="title">Prompt Manager</h1>
+            <nav class="breadcrumb-nav" id="breadcrumbNav">
+                <div class="breadcrumb-container">
+                    <button class="breadcrumb-item active" data-folder-id="home">
+                        <span class="breadcrumb-icon">🏠</span>
+                        <span class="breadcrumb-text">Home</span>
+                    </button>
+                </div>
+            </nav>
             <div class="header-actions">
                 <button class="settings-btn" id="settingsBtn" aria-label="Settings">
                     ⚙️
@@ -29,16 +36,6 @@
                 </div>
             </div>
         </header>
-
-        <!-- 브레드크럼 네비게이션 -->
-        <nav class="breadcrumb-nav" id="breadcrumbNav">
-            <div class="breadcrumb-container">
-                <button class="breadcrumb-item active" data-folder-id="home">
-                    <span class="breadcrumb-icon">🏠</span>
-                    <span class="breadcrumb-text">Home</span>
-                </button>
-            </div>
-        </nav>
 
         <div class="search-section">
             <div class="search-box">
