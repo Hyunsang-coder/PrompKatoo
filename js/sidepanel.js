@@ -1609,232 +1609,231 @@ class FolderPromptManager {
     }
 
     async importDataToStorage(data) {
-        console.log('📂 Importing data to storage, format detection...');
+        console.log('📂 Starting enhanced import process...');
+        console.log('⏰ Import timestamp:', new Date().toISOString());
         
-        // Handle different data formats
-        if (Array.isArray(data)) {
-            console.log('📜 Legacy format detected: array of prompts');
-            console.log('📊 Processing', data.length, 'legacy prompts');
-            
-            // Collect all valid prompts first
-            const validPrompts = [];
-            for (const prompt of data) {
-                if (prompt.title && prompt.content) {
-                    console.log('📋 Processing legacy prompt:', prompt.title);
-                    console.log('📊 Legacy prompt fields:', Object.keys(prompt));
-                    
-                    // Pass all available fields (except id to avoid conflicts)
-                    const promptData = {
-                        title: prompt.title,
-                        content: prompt.content,
-                        folderId: prompt.folderId || 'home',
-                        isFavorite: prompt.isFavorite || false,
-                        usageCount: prompt.usageCount || 0,
-                        createdAt: prompt.createdAt || Date.now()
-                    };
-                    
-                    // Add optional fields if they exist in legacy format
-                    if (prompt.order !== undefined) {
-                        promptData.order = prompt.order;
-                        console.log('📋 Including legacy order field:', prompt.order);
-                    }
-                    if (prompt.updatedAt !== undefined) {
-                        promptData.updatedAt = prompt.updatedAt;
-                        console.log('🕒 Including legacy updatedAt field:', prompt.updatedAt);
-                    }
-                    if (prompt.variables !== undefined) {
-                        promptData.variables = prompt.variables;
-                        console.log('🔤 Including legacy variables field:', prompt.variables);
-                    }
-                    
-                    validPrompts.push(promptData);
-                } else {
-                    console.warn('⚠️ Skipping invalid legacy prompt:', prompt);
-                }
-            }
-            
-            // Batch save all prompts at once to avoid race conditions
-            if (validPrompts.length > 0) {
-                console.log('💾 Batch saving', validPrompts.length, 'legacy prompts...');
-                await this.batchSavePrompts(validPrompts);
-                console.log('✅ Legacy import completed:', validPrompts.length, 'prompts imported');
-            }
-            
-        } else if (data.prompts || data.folders) {
-            console.log('🏗️ New structured format detected');
-            
-            // Import folders first
-            if (data.folders) {
-                console.log('📁 Processing', data.folders.length, 'folders');
-                const validFolders = [];
-                
-                for (const folder of data.folders) {
-                    if (folder.name && folder.id !== 'home') { // Skip home folder
-                        console.log('📋 Processing folder:', folder.name);
-                        console.log('📊 Folder fields:', Object.keys(folder));
-                        
-                        // Pass all available fields (except id to avoid conflicts)
-                        const folderData = {
-                            name: folder.name,
-                            icon: folder.icon || '📁',
-                            parentId: folder.parentId === 'home' ? null : folder.parentId,
-                            createdAt: folder.createdAt || Date.now()
-                        };
-                        
-                        // Add optional fields if they exist
-                        if (folder.color !== undefined) {
-                            folderData.color = folder.color;
-                            console.log('🎨 Including color field:', folder.color);
-                        }
-                        
-                        validFolders.push(folderData);
-                    } else {
-                        console.log('⏭️ Skipping home folder or invalid folder:', folder);
-                    }
-                }
-                
-                // Batch save folders
-                if (validFolders.length > 0) {
-                    console.log('💾 Batch saving', validFolders.length, 'folders...');
-                    await this.batchSaveFolders(validFolders);
-                    console.log('✅ Folder import completed:', validFolders.length, 'folders imported');
-                }
-            }
-            
-            // Import prompts
-            if (data.prompts) {
-                console.log('📝 Processing', data.prompts.length, 'prompts');
-                const validPrompts = [];
-                
-                for (const prompt of data.prompts) {
-                    if (prompt.title && prompt.content) {
-                        console.log('📋 Processing prompt:', prompt.title);
-                        console.log('📊 Prompt fields:', Object.keys(prompt));
-                        
-                        // Pass all available fields (except id to avoid conflicts)
-                        const promptData = {
-                            title: prompt.title,
-                            content: prompt.content,
-                            folderId: prompt.folderId || 'home',
-                            isFavorite: prompt.isFavorite || false,
-                            usageCount: prompt.usageCount || 0,
-                            createdAt: prompt.createdAt || Date.now()
-                        };
-                        
-                        // Add optional fields if they exist
-                        if (prompt.order !== undefined) {
-                            promptData.order = prompt.order;
-                            console.log('📋 Including order field:', prompt.order);
-                        }
-                        if (prompt.updatedAt !== undefined) {
-                            promptData.updatedAt = prompt.updatedAt;
-                            console.log('🕒 Including updatedAt field:', prompt.updatedAt);
-                        }
-                        if (prompt.variables !== undefined) {
-                            promptData.variables = prompt.variables;
-                            console.log('🔤 Including variables field:', prompt.variables);
-                        }
-                        
-                        validPrompts.push(promptData);
-                    } else {
-                        console.warn('⚠️ Skipping invalid prompt:', prompt);
-                    }
-                }
-                
-                // Batch save all prompts at once to avoid race conditions
-                if (validPrompts.length > 0) {
-                    console.log('💾 Batch saving', validPrompts.length, 'prompts...');
-                    await this.batchSavePrompts(validPrompts);
-                    console.log('✅ Prompt import completed:', validPrompts.length, 'prompts imported');
-                }
-            }
-        } else {
-            console.error('❌ Unknown data format:', data);
-            throw new Error('Unknown data format');
-        }
-        
-        console.log('🎯 Import to storage completed successfully');
-    }
-
-    // Batch save methods to avoid race conditions during import
-    async batchSavePrompts(promptsData) {
         try {
-            console.log('🔄 Starting batch save for', promptsData.length, 'prompts');
+            // Validate storage is ready
+            console.log('🔄 Waiting for storage sync...');
+            await promptStorage.waitForStorageSync();
+            console.log('✅ Storage sync confirmed');
             
-            // Get current prompts from storage
-            const currentPrompts = await promptStorage.getAllPrompts();
-            console.log('📊 Current prompts in storage:', currentPrompts.length);
+            // Pre-import data integrity check
+            console.log('🔍 Pre-import integrity check...');
+            const preImportValidation = await promptStorage.validateDataIntegrity();
+            console.log('📊 Pre-import state:', preImportValidation.summary);
             
-            // Process each prompt data into full prompt objects
-            const newPrompts = promptsData.map(promptData => {
-                const newPrompt = {
-                    id: generateUUID(),
-                    title: promptData.title,
-                    content: promptData.content,
-                    folderId: promptData.folderId || 'home',
-                    isFavorite: promptData.isFavorite || false,
-                    createdAt: promptData.createdAt || Date.now(),
-                    usageCount: promptData.usageCount || 0,
-                    variables: extractVariables(promptData.content),
-                    updatedAt: Date.now(),
-                    order: promptData.order || Date.now()
-                };
+            if (!preImportValidation.isValid) {
+                console.warn('⚠️ Pre-import validation issues found:', preImportValidation);
+            }
+            
+            // Create folder ID mapping for import process
+            const folderIdMapping = new Map();
+            let importedFolders = [];
+            let importedPrompts = [];
+            
+            // Handle different data formats
+            if (Array.isArray(data)) {
+                console.log('📜 Legacy format detected: array of prompts');
+                console.log('📊 Processing', data.length, 'legacy prompts');
                 
-                console.log('✨ Created prompt object:', newPrompt.title, 'with ID:', newPrompt.id);
-                return newPrompt;
+                importedPrompts = await this.processLegacyPrompts(data);
+                
+            } else if (data.prompts || data.folders) {
+                console.log('🏗️ New structured format detected');
+                
+                // Import folders first with ID mapping
+                if (data.folders) {
+                    console.log('📁 Processing', data.folders.length, 'folders');
+                    const result = await this.processFoldersWithMapping(data.folders, folderIdMapping);
+                    importedFolders = result.folders;
+                }
+                
+                // Import prompts with updated folder IDs
+                if (data.prompts) {
+                    console.log('📝 Processing', data.prompts.length, 'prompts');
+                    importedPrompts = await this.processPromptsWithMapping(data.prompts, folderIdMapping);
+                }
+            } else {
+                console.error('❌ Unknown data format:', data);
+                throw new Error('Unknown data format');
+            }
+            
+            // Post-import validation and verification
+            console.log('🔍 Post-import integrity check...');
+            await new Promise(resolve => setTimeout(resolve, 500)); // Small delay for storage to sync
+            
+            const postImportValidation = await promptStorage.validateDataIntegrity();
+            console.log('📊 Post-import state:', postImportValidation.summary);
+            
+            if (!postImportValidation.isValid) {
+                console.error('❌ Post-import validation failed:', postImportValidation);
+                throw new Error('Import validation failed: ' + postImportValidation.folders.issues.concat(postImportValidation.prompts.issues).join(', '));
+            }
+            
+            // Verify the actual data is accessible
+            console.log('🔍 Verifying imported data accessibility...');
+            const allPrompts = await promptStorage.getAllPrompts();
+            const allFolders = await promptStorage.getAllFolders();
+            
+            console.log('✅ Import verification complete:', {
+                totalPrompts: allPrompts.length,
+                totalFolders: allFolders.length,
+                importedPrompts: importedPrompts.length,
+                importedFolders: importedFolders.length,
+                promptsInHome: allPrompts.filter(p => p.folderId === 'home').length
             });
             
-            // Combine current and new prompts
-            const allPrompts = [...currentPrompts, ...newPrompts];
-            console.log('📦 Total prompts to save:', allPrompts.length);
+            console.log('🎯 Enhanced import process completed successfully');
             
-            // Save all prompts at once
-            await chrome.storage.local.set({ 'prompt_manager_data': allPrompts });
-            console.log('✅ Batch save completed successfully');
-            
-            return newPrompts;
         } catch (error) {
-            console.error('❌ Batch save prompts failed:', error);
-            throw new Error('Failed to batch save prompts');
+            console.error('❌ Enhanced import process failed:', error);
+            throw error;
         }
+    }
+
+    async processLegacyPrompts(legacyData) {
+        const validPrompts = [];
+        
+        for (const prompt of legacyData) {
+            if (prompt.title && prompt.content) {
+                console.log('📋 Processing legacy prompt:', prompt.title);
+                
+                const promptData = {
+                    title: prompt.title,
+                    content: prompt.content,
+                    folderId: prompt.folderId || 'home',
+                    isFavorite: prompt.isFavorite || false,
+                    usageCount: prompt.usageCount || 0,
+                    createdAt: prompt.createdAt || Date.now()
+                };
+                
+                // Add optional fields if they exist
+                if (prompt.order !== undefined) promptData.order = prompt.order;
+                if (prompt.updatedAt !== undefined) promptData.updatedAt = prompt.updatedAt;
+                if (prompt.variables !== undefined) promptData.variables = prompt.variables;
+                
+                validPrompts.push(promptData);
+            } else {
+                console.warn('⚠️ Skipping invalid legacy prompt:', prompt);
+            }
+        }
+        
+        if (validPrompts.length > 0) {
+            console.log('💾 Batch saving', validPrompts.length, 'legacy prompts with validation...');
+            await promptStorage.batchSavePromptsWithValidation(validPrompts);
+        }
+        
+        return validPrompts;
+    }
+
+    async processFoldersWithMapping(foldersData, folderIdMapping) {
+        console.log('🗺️ Creating folder ID mapping...');
+        const validFolders = [];
+        
+        // First pass: create new IDs for all folders and build mapping
+        for (const folder of foldersData) {
+            if (folder.name && folder.id !== 'home') {
+                const newId = generateUUID();
+                folderIdMapping.set(folder.id, newId);
+                console.log('🔗 Folder ID mapping:', folder.id, '->', newId);
+                
+                const folderData = {
+                    name: folder.name,
+                    icon: folder.icon || '📁',
+                    parentId: folder.parentId === 'home' ? null : folder.parentId, // Will be updated in second pass
+                    createdAt: folder.createdAt || Date.now()
+                };
+                
+                if (folder.color !== undefined) folderData.color = folder.color;
+                
+                validFolders.push({ ...folderData, originalId: folder.id, newId: newId });
+            }
+        }
+        
+        // Second pass: update parent IDs with mapped values
+        const finalFolders = validFolders.map(folder => {
+            if (folder.parentId && folder.parentId !== null && folder.parentId !== 'home') {
+                const mappedParentId = folderIdMapping.get(folder.parentId);
+                if (mappedParentId) {
+                    folder.parentId = mappedParentId;
+                    console.log('🔗 Updated parent ID for', folder.name, 'to', mappedParentId);
+                } else {
+                    console.warn('⚠️ Parent folder not found in mapping, setting to home:', folder.parentId);
+                    folder.parentId = null;
+                }
+            }
+            
+            // Remove temporary fields
+            const { originalId, newId, ...cleanFolder } = folder;
+            return cleanFolder;
+        });
+        
+        if (finalFolders.length > 0) {
+            console.log('💾 Batch saving', finalFolders.length, 'folders with validation...');
+            await promptStorage.batchSaveFoldersWithValidation(finalFolders);
+        }
+        
+        return { folders: finalFolders, mapping: folderIdMapping };
+    }
+
+    async processPromptsWithMapping(promptsData, folderIdMapping) {
+        console.log('🗺️ Processing prompts with folder ID mapping...');
+        const validPrompts = [];
+        
+        for (const prompt of promptsData) {
+            if (prompt.title && prompt.content) {
+                console.log('📋 Processing prompt:', prompt.title);
+                
+                let folderId = prompt.folderId || 'home';
+                
+                // Map folder ID if it exists in our mapping
+                if (folderId !== 'home' && folderIdMapping.has(folderId)) {
+                    const mappedFolderId = folderIdMapping.get(folderId);
+                    console.log('🔗 Mapped folder ID for prompt', prompt.title, ':', folderId, '->', mappedFolderId);
+                    folderId = mappedFolderId;
+                } else if (folderId !== 'home') {
+                    console.warn('⚠️ Folder ID not found in mapping, using home:', folderId);
+                    folderId = 'home';
+                }
+                
+                const promptData = {
+                    title: prompt.title,
+                    content: prompt.content,
+                    folderId: folderId,
+                    isFavorite: prompt.isFavorite || false,
+                    usageCount: prompt.usageCount || 0,
+                    createdAt: prompt.createdAt || Date.now()
+                };
+                
+                // Add optional fields if they exist
+                if (prompt.order !== undefined) promptData.order = prompt.order;
+                if (prompt.updatedAt !== undefined) promptData.updatedAt = prompt.updatedAt;
+                if (prompt.variables !== undefined) promptData.variables = prompt.variables;
+                
+                validPrompts.push(promptData);
+            } else {
+                console.warn('⚠️ Skipping invalid prompt:', prompt);
+            }
+        }
+        
+        if (validPrompts.length > 0) {
+            console.log('💾 Batch saving', validPrompts.length, 'prompts with validation...');
+            await promptStorage.batchSavePromptsWithValidation(validPrompts);
+        }
+        
+        return validPrompts;
+    }
+
+    // Legacy batch save methods (kept for compatibility, now delegate to validated versions)
+    async batchSavePrompts(promptsData) {
+        console.log('📢 Using legacy batchSavePrompts, delegating to validated version...');
+        return await promptStorage.batchSavePromptsWithValidation(promptsData);
     }
 
     async batchSaveFolders(foldersData) {
-        try {
-            console.log('🔄 Starting batch save for', foldersData.length, 'folders');
-            
-            // Get current folders from storage
-            const currentFolders = await promptStorage.getAllFolders();
-            console.log('📊 Current folders in storage:', currentFolders.length);
-            
-            // Process each folder data into full folder objects
-            const newFolders = foldersData.map(folderData => {
-                const newFolder = {
-                    id: generateUUID(),
-                    name: folderData.name,
-                    icon: folderData.icon || '📁',
-                    parentId: folderData.parentId || null,
-                    createdAt: folderData.createdAt || Date.now(),
-                    color: folderData.color || null
-                };
-                
-                console.log('✨ Created folder object:', newFolder.name, 'with ID:', newFolder.id);
-                return newFolder;
-            });
-            
-            // Combine current and new folders
-            const allFolders = [...currentFolders, ...newFolders];
-            console.log('📦 Total folders to save:', allFolders.length);
-            
-            // Save all folders at once
-            await chrome.storage.local.set({ 'prompt_manager_folders': allFolders });
-            console.log('✅ Batch save completed successfully');
-            
-            return newFolders;
-        } catch (error) {
-            console.error('❌ Batch save folders failed:', error);
-            throw new Error('Failed to batch save folders');
-        }
+        console.log('📢 Using legacy batchSaveFolders, delegating to validated version...');
+        return await promptStorage.batchSaveFoldersWithValidation(foldersData);
     }
 
     // Export Methods

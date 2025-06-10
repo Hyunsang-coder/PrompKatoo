@@ -570,6 +570,298 @@ class PromptStorage {
             throw new Error('Unable to clear data.');
         }
     }
+
+    // Data integrity validation methods
+    async validateFolderIntegrity() {
+        try {
+            const folders = await this.getAllFolders();
+            const issues = [];
+            
+            // Check for home folder existence
+            const homeFolder = folders.find(f => f.id === 'home');
+            if (!homeFolder) {
+                issues.push('Home folder missing');
+            }
+            
+            // Check for duplicate folder IDs
+            const folderIds = folders.map(f => f.id);
+            const duplicateIds = folderIds.filter((id, index) => folderIds.indexOf(id) !== index);
+            if (duplicateIds.length > 0) {
+                issues.push(`Duplicate folder IDs: ${duplicateIds.join(', ')}`);
+            }
+            
+            // Check for circular references
+            for (const folder of folders) {
+                if (this.hasCircularReference(folder, folders)) {
+                    issues.push(`Circular reference detected for folder: ${folder.name} (${folder.id})`);
+                }
+            }
+            
+            // Check for orphaned folders (parent doesn't exist)
+            for (const folder of folders) {
+                if (folder.parentId && folder.parentId !== null && folder.parentId !== 'home') {
+                    const parent = folders.find(f => f.id === folder.parentId);
+                    if (!parent) {
+                        issues.push(`Orphaned folder: ${folder.name} (${folder.id}) - parent ${folder.parentId} not found`);
+                    }
+                }
+            }
+            
+            return {
+                isValid: issues.length === 0,
+                issues: issues,
+                folderCount: folders.length
+            };
+        } catch (error) {
+            console.error('Failed to validate folder integrity:', error);
+            return {
+                isValid: false,
+                issues: ['Failed to validate folder integrity: ' + error.message],
+                folderCount: 0
+            };
+        }
+    }
+
+    async validatePromptIntegrity() {
+        try {
+            const prompts = await this.getAllPrompts();
+            const folders = await this.getAllFolders();
+            const issues = [];
+            
+            // Check for duplicate prompt IDs
+            const promptIds = prompts.map(p => p.id);
+            const duplicateIds = promptIds.filter((id, index) => promptIds.indexOf(id) !== index);
+            if (duplicateIds.length > 0) {
+                issues.push(`Duplicate prompt IDs: ${duplicateIds.join(', ')}`);
+            }
+            
+            // Check for orphaned prompts (folder doesn't exist)
+            const folderIds = folders.map(f => f.id);
+            for (const prompt of prompts) {
+                if (prompt.folderId && !folderIds.includes(prompt.folderId)) {
+                    issues.push(`Orphaned prompt: ${prompt.title} (${prompt.id}) - folder ${prompt.folderId} not found`);
+                }
+            }
+            
+            // Check for invalid prompt data
+            for (const prompt of prompts) {
+                if (!prompt.id || !prompt.title || !prompt.content) {
+                    issues.push(`Invalid prompt data: ${prompt.title || 'No title'} (${prompt.id || 'No ID'})`);
+                }
+            }
+            
+            return {
+                isValid: issues.length === 0,
+                issues: issues,
+                promptCount: prompts.length
+            };
+        } catch (error) {
+            console.error('Failed to validate prompt integrity:', error);
+            return {
+                isValid: false,
+                issues: ['Failed to validate prompt integrity: ' + error.message],
+                promptCount: 0
+            };
+        }
+    }
+
+    async validateDataIntegrity() {
+        try {
+            const [folderValidation, promptValidation] = await Promise.all([
+                this.validateFolderIntegrity(),
+                this.validatePromptIntegrity()
+            ]);
+            
+            return {
+                isValid: folderValidation.isValid && promptValidation.isValid,
+                folders: folderValidation,
+                prompts: promptValidation,
+                summary: {
+                    totalFolders: folderValidation.folderCount,
+                    totalPrompts: promptValidation.promptCount,
+                    totalIssues: folderValidation.issues.length + promptValidation.issues.length
+                }
+            };
+        } catch (error) {
+            console.error('Failed to validate data integrity:', error);
+            return {
+                isValid: false,
+                folders: { isValid: false, issues: [], folderCount: 0 },
+                prompts: { isValid: false, issues: [], promptCount: 0 },
+                summary: { totalFolders: 0, totalPrompts: 0, totalIssues: 1 },
+                error: error.message
+            };
+        }
+    }
+
+    hasCircularReference(folder, allFolders, visited = new Set()) {
+        if (visited.has(folder.id)) {
+            return true; // Circular reference detected
+        }
+        
+        if (!folder.parentId || folder.parentId === null || folder.parentId === 'home') {
+            return false; // Reached root, no cycle
+        }
+        
+        visited.add(folder.id);
+        const parent = allFolders.find(f => f.id === folder.parentId);
+        
+        if (!parent) {
+            return false; // Parent doesn't exist, not a cycle (orphaned)
+        }
+        
+        return this.hasCircularReference(parent, allFolders, visited);
+    }
+
+    async waitForStorageSync(timeout = 5000) {
+        return new Promise((resolve, reject) => {
+            const startTime = Date.now();
+            
+            const checkSync = async () => {
+                try {
+                    // Test read/write to ensure storage is accessible
+                    const testKey = '_storage_sync_test_' + Date.now();
+                    const testValue = { timestamp: Date.now() };
+                    
+                    await chrome.storage.local.set({ [testKey]: testValue });
+                    const result = await chrome.storage.local.get([testKey]);
+                    await chrome.storage.local.remove([testKey]);
+                    
+                    if (result[testKey] && result[testKey].timestamp === testValue.timestamp) {
+                        resolve(true);
+                    } else {
+                        throw new Error('Storage sync test failed');
+                    }
+                } catch (error) {
+                    if (Date.now() - startTime > timeout) {
+                        reject(new Error(`Storage sync timeout after ${timeout}ms: ${error.message}`));
+                    } else {
+                        // Retry after a short delay
+                        setTimeout(checkSync, 100);
+                    }
+                }
+            };
+            
+            checkSync();
+        });
+    }
+
+    // Enhanced batch operations with better error handling
+    async batchSavePromptsWithValidation(promptsData) {
+        try {
+            console.log('🔄 Starting validated batch save for', promptsData.length, 'prompts');
+            
+            // Validate input data
+            if (!Array.isArray(promptsData) || promptsData.length === 0) {
+                throw new Error('Invalid prompts data provided');
+            }
+            
+            // Wait for storage to be ready
+            await this.waitForStorageSync();
+            
+            // Get current data
+            const [currentPrompts, currentFolders] = await Promise.all([
+                this.getAllPrompts(),
+                this.getAllFolders()
+            ]);
+            
+            console.log('📊 Current storage state:', {
+                prompts: currentPrompts.length,
+                folders: currentFolders.length
+            });
+            
+            // Validate folder references
+            const folderIds = currentFolders.map(f => f.id);
+            const validatedPrompts = promptsData.map(promptData => {
+                const newPrompt = {
+                    id: generateUUID(),
+                    title: this.validateTitle(promptData.title),
+                    content: this.validateContent(promptData.content),
+                    folderId: folderIds.includes(promptData.folderId) ? promptData.folderId : 'home',
+                    isFavorite: promptData.isFavorite || false,
+                    createdAt: promptData.createdAt || Date.now(),
+                    usageCount: promptData.usageCount || 0,
+                    variables: extractVariables(promptData.content),
+                    updatedAt: Date.now(),
+                    order: promptData.order || Date.now()
+                };
+                
+                console.log('✨ Created validated prompt:', newPrompt.title, 'with ID:', newPrompt.id);
+                return newPrompt;
+            });
+            
+            // Combine and save
+            const allPrompts = [...currentPrompts, ...validatedPrompts];
+            console.log('📦 Total prompts to save:', allPrompts.length);
+            
+            // Use a promise-based approach for storage
+            return new Promise((resolve, reject) => {
+                chrome.storage.local.set({ [this.storageKey]: allPrompts }, () => {
+                    if (chrome.runtime.lastError) {
+                        reject(new Error(`Storage save failed: ${chrome.runtime.lastError.message}`));
+                    } else {
+                        console.log('✅ Validated batch save completed successfully');
+                        resolve(validatedPrompts);
+                    }
+                });
+            });
+        } catch (error) {
+            console.error('❌ Validated batch save failed:', error);
+            throw new Error(`Failed to batch save prompts: ${error.message}`);
+        }
+    }
+
+    async batchSaveFoldersWithValidation(foldersData) {
+        try {
+            console.log('🔄 Starting validated batch save for', foldersData.length, 'folders');
+            
+            // Validate input data
+            if (!Array.isArray(foldersData) || foldersData.length === 0) {
+                throw new Error('Invalid folders data provided');
+            }
+            
+            // Wait for storage to be ready
+            await this.waitForStorageSync();
+            
+            // Get current folders
+            const currentFolders = await this.getAllFolders();
+            console.log('📊 Current folders in storage:', currentFolders.length);
+            
+            // Validate and process folder data
+            const validatedFolders = foldersData.map(folderData => {
+                const newFolder = {
+                    id: generateUUID(),
+                    name: this.validateFolderName(folderData.name),
+                    icon: folderData.icon || '📁',
+                    parentId: folderData.parentId || null,
+                    createdAt: folderData.createdAt || Date.now(),
+                    color: folderData.color || null
+                };
+                
+                console.log('✨ Created validated folder:', newFolder.name, 'with ID:', newFolder.id);
+                return newFolder;
+            });
+            
+            // Combine and save
+            const allFolders = [...currentFolders, ...validatedFolders];
+            console.log('📦 Total folders to save:', allFolders.length);
+            
+            // Use a promise-based approach for storage
+            return new Promise((resolve, reject) => {
+                chrome.storage.local.set({ [this.foldersKey]: allFolders }, () => {
+                    if (chrome.runtime.lastError) {
+                        reject(new Error(`Storage save failed: ${chrome.runtime.lastError.message}`));
+                    } else {
+                        console.log('✅ Validated folder batch save completed successfully');
+                        resolve(validatedFolders);
+                    }
+                });
+            });
+        } catch (error) {
+            console.error('❌ Validated folder batch save failed:', error);
+            throw new Error(`Failed to batch save folders: ${error.message}`);
+        }
+    }
 }
 
 const promptStorage = new PromptStorage();

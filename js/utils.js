@@ -304,3 +304,269 @@ function setElementVisibility(element, visible) {
         element.setAttribute('hidden', '');
     }
 }
+
+// ============================
+// DEBUGGING TOOLS
+// ============================
+
+/**
+ * Debugging utilities for Pocket Prompt import troubleshooting
+ * Use these functions in the browser console for diagnostics
+ */
+
+async function debugStorageState() {
+    console.log('🔍 ===== STORAGE STATE DEBUG =====');
+    
+    try {
+        // Get all storage data
+        const prompts = await promptStorage.getAllPrompts();
+        const folders = await promptStorage.getAllFolders();
+        
+        console.log('📊 Storage Summary:');
+        console.log('  - Total Prompts:', prompts.length);
+        console.log('  - Total Folders:', folders.length);
+        console.log('  - Prompts in Home:', prompts.filter(p => p.folderId === 'home').length);
+        
+        // Validate data integrity
+        const validation = await promptStorage.validateDataIntegrity();
+        console.log('✅ Data Integrity:', validation.isValid ? 'VALID' : 'INVALID');
+        
+        if (!validation.isValid) {
+            console.log('❌ Issues Found:');
+            validation.folders.issues.forEach(issue => console.log('  - Folder:', issue));
+            validation.prompts.issues.forEach(issue => console.log('  - Prompt:', issue));
+        }
+        
+        // Group prompts by folder
+        const promptsByFolder = {};
+        prompts.forEach(prompt => {
+            if (!promptsByFolder[prompt.folderId]) {
+                promptsByFolder[prompt.folderId] = [];
+            }
+            promptsByFolder[prompt.folderId].push(prompt);
+        });
+        
+        console.log('📁 Prompts by Folder:');
+        Object.entries(promptsByFolder).forEach(([folderId, folderPrompts]) => {
+            const folder = folders.find(f => f.id === folderId) || { name: folderId === 'home' ? 'Home' : 'Unknown' };
+            console.log(`  - ${folder.name} (${folderId}): ${folderPrompts.length} prompts`);
+        });
+        
+        return { prompts, folders, validation, promptsByFolder };
+        
+    } catch (error) {
+        console.error('❌ Debug failed:', error);
+        return { error: error.message };
+    }
+}
+
+async function debugImportProcess(jsonData) {
+    console.log('🔍 ===== IMPORT PROCESS DEBUG =====');
+    
+    try {
+        // Parse JSON if string
+        const data = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
+        
+        console.log('📄 Import Data Analysis:');
+        console.log('  - Data Type:', Array.isArray(data) ? 'Array (Legacy)' : 'Object (Structured)');
+        
+        if (Array.isArray(data)) {
+            console.log('  - Item Count:', data.length);
+            console.log('  - Valid Items:', data.filter(item => item.title && item.content).length);
+            console.log('  - Sample Item:', data[0]);
+        } else {
+            console.log('  - Has Prompts:', !!data.prompts, data.prompts ? `(${data.prompts.length})` : '');
+            console.log('  - Has Folders:', !!data.folders, data.folders ? `(${data.folders.length})` : '');
+            
+            if (data.prompts) {
+                console.log('  - Valid Prompts:', data.prompts.filter(p => p.title && p.content).length);
+                console.log('  - Sample Prompt:', data.prompts[0]);
+            }
+            
+            if (data.folders) {
+                console.log('  - Valid Folders:', data.folders.filter(f => f.name).length);
+                console.log('  - Sample Folder:', data.folders[0]);
+            }
+        }
+        
+        // Check for potential issues
+        const issues = [];
+        
+        if (Array.isArray(data)) {
+            const invalidItems = data.filter(item => !item.title || !item.content);
+            if (invalidItems.length > 0) {
+                issues.push(`${invalidItems.length} invalid items without title/content`);
+            }
+        } else {
+            if (data.folders) {
+                const invalidFolders = data.folders.filter(f => !f.name);
+                if (invalidFolders.length > 0) {
+                    issues.push(`${invalidFolders.length} invalid folders without name`);
+                }
+                
+                // Check for circular references
+                const folderIds = data.folders.map(f => f.id);
+                const duplicateIds = folderIds.filter((id, index) => folderIds.indexOf(id) !== index);
+                if (duplicateIds.length > 0) {
+                    issues.push(`Duplicate folder IDs: ${duplicateIds.join(', ')}`);
+                }
+            }
+            
+            if (data.prompts) {
+                const invalidPrompts = data.prompts.filter(p => !p.title || !p.content);
+                if (invalidPrompts.length > 0) {
+                    issues.push(`${invalidPrompts.length} invalid prompts without title/content`);
+                }
+            }
+        }
+        
+        if (issues.length > 0) {
+            console.log('⚠️ Potential Issues:');
+            issues.forEach(issue => console.log('  -', issue));
+        } else {
+            console.log('✅ No obvious issues detected');
+        }
+        
+        return { data, issues, isValid: issues.length === 0 };
+        
+    } catch (error) {
+        console.error('❌ Import debug failed:', error);
+        return { error: error.message };
+    }
+}
+
+async function debugClearStorage() {
+    console.log('🧹 ===== CLEARING STORAGE =====');
+    console.warn('⚠️ This will delete ALL data! Type debugClearStorageConfirm() to proceed.');
+}
+
+async function debugClearStorageConfirm() {
+    console.log('🧹 Clearing all storage data...');
+    
+    try {
+        await promptStorage.clearAllData();
+        console.log('✅ Storage cleared successfully');
+        
+        // Verify it's cleared
+        const prompts = await promptStorage.getAllPrompts();
+        const folders = await promptStorage.getAllFolders();
+        
+        console.log('📊 Post-clear state:');
+        console.log('  - Prompts:', prompts.length);
+        console.log('  - Folders:', folders.length);
+        
+        return { success: true, prompts: prompts.length, folders: folders.length };
+        
+    } catch (error) {
+        console.error('❌ Clear failed:', error);
+        return { error: error.message };
+    }
+}
+
+async function debugTestImport(sampleData = null) {
+    console.log('🧪 ===== TEST IMPORT =====');
+    
+    const testData = sampleData || {
+        prompts: [
+            {
+                id: 'test-1',
+                title: 'Test Prompt 1',
+                content: 'This is a test prompt with [variable]',
+                folderId: 'home',
+                isFavorite: false,
+                createdAt: Date.now()
+            },
+            {
+                id: 'test-2', 
+                title: 'Test Prompt 2',
+                content: 'Another test prompt',
+                folderId: 'test-folder',
+                isFavorite: true,
+                createdAt: Date.now()
+            }
+        ],
+        folders: [
+            {
+                id: 'test-folder',
+                name: 'Test Folder',
+                icon: '🧪',
+                parentId: null,
+                createdAt: Date.now()
+            }
+        ]
+    };
+    
+    try {
+        console.log('📄 Using test data:', testData);
+        
+        // Get state before
+        const beforeState = await debugStorageState();
+        console.log('📊 Before import:', beforeState.prompts.length, 'prompts,', beforeState.folders.length, 'folders');
+        
+        // Simulate import process
+        console.log('🔄 Starting test import...');
+        
+        // Create a test instance to access import methods
+        const manager = new FolderPromptManager();
+        await manager.importDataToStorage(testData);
+        
+        // Get state after
+        const afterState = await debugStorageState();
+        console.log('📊 After import:', afterState.prompts.length, 'prompts,', afterState.folders.length, 'folders');
+        
+        console.log('✅ Test import completed');
+        return { success: true, before: beforeState, after: afterState };
+        
+    } catch (error) {
+        console.error('❌ Test import failed:', error);
+        return { error: error.message };
+    }
+}
+
+function debugStorageWatch() {
+    console.log('👁️ ===== STORAGE WATCHER =====');
+    console.log('Listening for storage changes... (Check console for updates)');
+    
+    if (chrome?.storage?.onChanged) {
+        const listener = (changes, areaName) => {
+            if (areaName === 'local') {
+                console.log('🔄 Storage changed:', Object.keys(changes));
+                Object.entries(changes).forEach(([key, change]) => {
+                    if (key.includes('prompt_manager')) {
+                        const oldLength = change.oldValue ? (Array.isArray(change.oldValue) ? change.oldValue.length : Object.keys(change.oldValue).length) : 0;
+                        const newLength = change.newValue ? (Array.isArray(change.newValue) ? change.newValue.length : Object.keys(change.newValue).length) : 0;
+                        console.log(`  - ${key}: ${oldLength} → ${newLength} items`);
+                    }
+                });
+            }
+        };
+        
+        chrome.storage.onChanged.addListener(listener);
+        
+        // Return function to stop watching
+        return () => {
+            chrome.storage.onChanged.removeListener(listener);
+            console.log('👁️ Storage watching stopped');
+        };
+    } else {
+        console.log('⚠️ Chrome storage API not available');
+        return null;
+    }
+}
+
+// Make debugging functions globally available
+if (typeof window !== 'undefined') {
+    window.debugStorageState = debugStorageState;
+    window.debugImportProcess = debugImportProcess;
+    window.debugClearStorage = debugClearStorage;
+    window.debugClearStorageConfirm = debugClearStorageConfirm;
+    window.debugTestImport = debugTestImport;
+    window.debugStorageWatch = debugStorageWatch;
+    
+    console.log('🔧 Debug tools loaded! Available functions:');
+    console.log('  - debugStorageState() - Check current storage state');
+    console.log('  - debugImportProcess(jsonData) - Analyze import data');
+    console.log('  - debugClearStorage() - Clear all data (with confirmation)');
+    console.log('  - debugTestImport() - Run test import');
+    console.log('  - debugStorageWatch() - Watch storage changes');
+}
