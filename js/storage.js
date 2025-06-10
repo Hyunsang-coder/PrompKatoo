@@ -53,7 +53,7 @@ class PromptStorage {
             const result = await chrome.storage.local.get([this.storageKey]);
             return result[this.storageKey] || [];
         } catch (error) {
-            console.error('프롬프트 로딩 실패:', error);
+            console.error('Failed to load prompts:', error);
             return [];
         }
     }
@@ -63,7 +63,7 @@ class PromptStorage {
             const prompts = await this.getAllPrompts();
             return prompts.filter(prompt => prompt.folderId === folderId);
         } catch (error) {
-            console.error('폴더별 프롬프트 조회 실패:', error);
+            console.error('Failed to query folder prompts:', error);
             return [];
         }
     }
@@ -73,7 +73,7 @@ class PromptStorage {
             const result = await chrome.storage.local.get([this.foldersKey]);
             return result[this.foldersKey] || [];
         } catch (error) {
-            console.error('폴더 로딩 실패:', error);
+            console.error('Failed to load folders:', error);
             return [];
         }
     }
@@ -83,7 +83,7 @@ class PromptStorage {
             const folders = await this.getAllFolders();
             return folders.find(f => f.id === folderId) || null;
         } catch (error) {
-            console.error('폴더 조회 실패:', error);
+            console.error('Failed to query folder:', error);
             return null;
         }
     }
@@ -95,7 +95,7 @@ class PromptStorage {
             const targetParentId = parentId === 'home' ? null : parentId;
             return folders.filter(folder => folder.parentId === targetParentId);
         } catch (error) {
-            console.error('하위 폴더 조회 실패:', error);
+            console.error('Failed to query subfolders:', error);
             return [];
         }
     }
@@ -122,8 +122,8 @@ class PromptStorage {
             
             return newPrompt;
         } catch (error) {
-            console.error('프롬프트 저장 실패:', error);
-            throw new Error('프롬프트를 저장할 수 없습니다.');
+            console.error('Failed to save prompt:', error);
+            throw new Error('Unable to save prompt.');
         }
     }
 
@@ -134,10 +134,10 @@ class PromptStorage {
             if (folderData.parentId && folderData.parentId !== 'home') {
                 const parent = await this.getFolder(folderData.parentId);
                 if (!parent) {
-                    throw new Error('상위 폴더를 찾을 수 없습니다.');
+                    throw new Error('Parent folder not found.');
                 }
                 if (parent.parentId !== 'home' && parent.parentId !== null) {
-                    throw new Error('3단계 이상의 폴더 구조는 지원되지 않습니다.');
+                    throw new Error('Folder structures deeper than 3 levels are not supported.');
                 }
             }
             
@@ -155,8 +155,8 @@ class PromptStorage {
             
             return newFolder;
         } catch (error) {
-            console.error('폴더 저장 실패:', error);
-            throw new Error(error.message || '폴더를 저장할 수 없습니다.');
+            console.error('Failed to save folder:', error);
+            throw new Error(error.message || 'Unable to save folder.');
         }
     }
 
@@ -166,7 +166,7 @@ class PromptStorage {
             const index = prompts.findIndex(p => p.id === id);
             
             if (index === -1) {
-                throw new Error('프롬프트를 찾을 수 없습니다.');
+                throw new Error('Prompt not found.');
             }
 
             if (updates.title !== undefined) {
@@ -187,8 +187,8 @@ class PromptStorage {
             await chrome.storage.local.set({ [this.storageKey]: prompts });
             return prompts[index];
         } catch (error) {
-            console.error('프롬프트 업데이트 실패:', error);
-            throw new Error('프롬프트를 업데이트할 수 없습니다.');
+            console.error('Failed to update prompt:', error);
+            throw new Error('Unable to update prompt.');
         }
     }
 
@@ -198,7 +198,7 @@ class PromptStorage {
             const index = folders.findIndex(f => f.id === id);
             
             if (index === -1) {
-                throw new Error('폴더를 찾을 수 없습니다.');
+                throw new Error('Folder not found.');
             }
             
             if (updates.name !== undefined) {
@@ -213,8 +213,8 @@ class PromptStorage {
             await chrome.storage.local.set({ [this.foldersKey]: folders });
             return folders[index];
         } catch (error) {
-            console.error('폴더 업데이트 실패:', error);
-            throw new Error('폴더를 업데이트할 수 없습니다.');
+            console.error('Failed to update folder:', error);
+            throw new Error('Unable to update folder.');
         }
     }
 
@@ -224,28 +224,28 @@ class PromptStorage {
             const filteredPrompts = prompts.filter(p => p.id !== id);
             
             if (prompts.length === filteredPrompts.length) {
-                throw new Error('프롬프트를 찾을 수 없습니다.');
+                throw new Error('Prompt not found.');
             }
             
             await chrome.storage.local.set({ [this.storageKey]: filteredPrompts });
             return true;
         } catch (error) {
-            console.error('프롬프트 삭제 실패:', error);
-            throw new Error('프롬프트를 삭제할 수 없습니다.');
+            console.error('Failed to delete prompt:', error);
+            throw new Error('Unable to delete prompt.');
         }
     }
 
     async deleteFolder(id) {
         try {
             if (id === 'home') {
-                throw new Error('홈 폴더는 삭제할 수 없습니다.');
+                throw new Error('Home folder cannot be deleted.');
             }
             
             const folders = await this.getAllFolders();
             const folderToDelete = folders.find(f => f.id === id);
             
             if (!folderToDelete) {
-                throw new Error('폴더를 찾을 수 없습니다.');
+                throw new Error('Folder not found.');
             }
             
             const subfolders = await this.getFoldersByParent(id);
@@ -270,8 +270,8 @@ class PromptStorage {
             
             return true;
         } catch (error) {
-            console.error('폴더 삭제 실패:', error);
-            throw new Error(error.message || '폴더를 삭제할 수 없습니다.');
+            console.error('Failed to delete folder:', error);
+            throw new Error(error.message || 'Unable to delete folder.');
         }
     }
 
@@ -279,13 +279,13 @@ class PromptStorage {
         try {
             const targetFolder = await this.getFolder(targetFolderId);
             if (!targetFolder && targetFolderId !== 'home') {
-                throw new Error('대상 폴더를 찾을 수 없습니다.');
+                throw new Error('Target folder not found.');
             }
             
             return await this.updatePrompt(promptId, { folderId: targetFolderId });
         } catch (error) {
-            console.error('프롬프트 이동 실패:', error);
-            throw new Error('프롬프트를 이동할 수 없습니다.');
+            console.error('Failed to move prompt:', error);
+            throw new Error('Unable to move prompt.');
         }
     }
 
@@ -297,7 +297,7 @@ class PromptStorage {
             // Validate that all provided IDs exist in the folder
             const folderPromptIds = folderPrompts.map(p => p.id);
             if (!promptIds.every(id => folderPromptIds.includes(id))) {
-                throw new Error('일부 프롬프트가 해당 폴더에 존재하지 않습니다.');
+                throw new Error('Some prompts do not exist in the specified folder.');
             }
             
             // Update order values based on new sequence
@@ -312,8 +312,8 @@ class PromptStorage {
             await chrome.storage.local.set({ [this.storageKey]: prompts });
             return true;
         } catch (error) {
-            console.error('프롬프트 재정렬 실패:', error);
-            throw new Error('프롬프트 순서를 변경할 수 없습니다.');
+            console.error('Failed to reorder prompts:', error);
+            throw new Error('Unable to change prompt order.');
         }
     }
 
@@ -322,7 +322,7 @@ class PromptStorage {
             const prompts = await this.getAllPrompts();
             return prompts.find(p => p.id === id) || null;
         } catch (error) {
-            console.error('프롬프트 조회 실패:', error);
+            console.error('Failed to query prompt:', error);
             return null;
         }
     }
@@ -336,7 +336,7 @@ class PromptStorage {
                 });
             }
         } catch (error) {
-            console.error('사용 횟수 업데이트 실패:', error);
+            console.error('Failed to update usage count:', error);
         }
     }
 
@@ -348,9 +348,9 @@ class PromptStorage {
                     isFavorite: !prompt.isFavorite 
                 });
             }
-            throw new Error('프롬프트를 찾을 수 없습니다.');
+            throw new Error('Prompt not found.');
         } catch (error) {
-            console.error('즐겨찾기 토글 실패:', error);
+            console.error('Failed to toggle favorite:', error);
             throw error;
         }
     }
@@ -374,7 +374,7 @@ class PromptStorage {
                 prompt.content.toLowerCase().includes(searchTerm)
             );
         } catch (error) {
-            console.error('프롬프트 검색 실패:', error);
+            console.error('Failed to search prompts:', error);
             return [];
         }
     }
@@ -392,7 +392,7 @@ class PromptStorage {
                 };
             });
         } catch (error) {
-            console.error('프롬프트 검색 (폴더 정보 포함) 실패:', error);
+            console.error('Failed to search prompts with folder info:', error);
             return [];
         }
     }
@@ -421,7 +421,7 @@ class PromptStorage {
             const prompts = await this.getAllPrompts();
             return prompts.filter(prompt => prompt.isFavorite);
         } catch (error) {
-            console.error('즐겨찾기 프롬프트 조회 실패:', error);
+            console.error('Failed to query favorite prompts:', error);
             return [];
         }
     }
@@ -436,8 +436,8 @@ class PromptStorage {
             };
             return JSON.stringify(exportData, null, 2);
         } catch (error) {
-            console.error('데이터 내보내기 실패:', error);
-            throw new Error('데이터를 내보낼 수 없습니다.');
+            console.error('Failed to export data:', error);
+            throw new Error('Unable to export data.');
         }
     }
 
@@ -446,7 +446,7 @@ class PromptStorage {
             const data = JSON.parse(jsonData);
             
             if (!data.prompts || !Array.isArray(data.prompts)) {
-                throw new Error('올바르지 않은 데이터 형식입니다.');
+                throw new Error('Invalid data format.');
             }
 
             const validPrompts = data.prompts.filter(prompt => {
@@ -463,8 +463,8 @@ class PromptStorage {
             await chrome.storage.local.set({ [this.storageKey]: validPrompts });
             return validPrompts.length;
         } catch (error) {
-            console.error('데이터 가져오기 실패:', error);
-            throw new Error('데이터를 가져올 수 없습니다.');
+            console.error('Failed to import data:', error);
+            throw new Error('Unable to import data.');
         }
     }
 
@@ -473,23 +473,23 @@ class PromptStorage {
             await chrome.storage.local.remove([this.storageKey]);
             return true;
         } catch (error) {
-            console.error('데이터 초기화 실패:', error);
-            throw new Error('데이터를 초기화할 수 없습니다.');
+            console.error('Failed to clear data:', error);
+            throw new Error('Unable to clear data.');
         }
     }
 
     validateTitle(title) {
         if (!title || typeof title !== 'string') {
-            throw new Error('제목이 필요합니다.');
+            throw new Error('Title is required.');
         }
         
         const trimmed = title.trim();
         if (trimmed.length === 0) {
-            throw new Error('제목을 입력해주세요.');
+            throw new Error('Please enter a title.');
         }
         
         if (trimmed.length > 100) {
-            throw new Error('제목은 100자 이하로 입력해주세요.');
+            throw new Error('Title must be 100 characters or less.');
         }
         
         return trimmed;
@@ -497,17 +497,17 @@ class PromptStorage {
 
     validateContent(content) {
         if (!content || typeof content !== 'string') {
-            throw new Error('내용이 필요합니다.');
+            throw new Error('Content is required.');
         }
         
         const trimmed = content.trim();
         if (trimmed.length === 0) {
-            throw new Error('내용을 입력해주세요.');
+            throw new Error('Please enter content.');
         }
         
         const wordCount = trimmed.split(/\s+/).length;
         if (wordCount > 5000) {
-            throw new Error('내용은 5000단어 이하로 입력해주세요.');
+            throw new Error('Content must be 5000 words or less.');
         }
         
         return trimmed;
@@ -515,16 +515,16 @@ class PromptStorage {
 
     validateFolderName(name) {
         if (!name || typeof name !== 'string') {
-            throw new Error('폴더명이 필요합니다.');
+            throw new Error('Folder name is required.');
         }
         
         const trimmed = name.trim();
         if (trimmed.length === 0) {
-            throw new Error('폴더명을 입력해주세요.');
+            throw new Error('Please enter a folder name.');
         }
         
         if (trimmed.length > 50) {
-            throw new Error('폴더명은 50자 이하로 입력해주세요.');
+            throw new Error('Folder name must be 50 characters or less.');
         }
         
         return trimmed;
@@ -546,7 +546,7 @@ class PromptStorage {
                 totalUsage: prompts.reduce((sum, p) => sum + p.usageCount, 0)
             };
         } catch (error) {
-            console.error('저장소 통계 조회 실패:', error);
+            console.error('Failed to query storage stats:', error);
             return null;
         }
     }
@@ -566,8 +566,8 @@ class PromptStorage {
                 }]
             });
         } catch (error) {
-            console.error('데이터 초기화 실패:', error);
-            throw new Error('데이터를 초기화할 수 없습니다.');
+            console.error('Failed to clear data:', error);
+            throw new Error('Unable to clear data.');
         }
     }
 }

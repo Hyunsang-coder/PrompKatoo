@@ -185,7 +185,7 @@ class FolderPromptManager {
             await this.loadCurrentView();
         } catch (error) {
             console.error('App initialization failed:', error);
-            showToast('앱 초기화에 실패했습니다.', 'error');
+            showToast('Failed to initialize app.', 'error');
         }
     }
 
@@ -194,7 +194,7 @@ class FolderPromptManager {
             const result = await chrome.storage.local.get(['variable_defaults']);
             this.variableDefaults = result.variable_defaults || {};
         } catch (error) {
-            console.warn('변수 기본값 로딩 실패:', error);
+            console.warn('Failed to load variable defaults:', error);
             this.variableDefaults = {};
         }
     }
@@ -203,7 +203,7 @@ class FolderPromptManager {
         try {
             await chrome.storage.local.set({ variable_defaults: this.variableDefaults });
         } catch (error) {
-            console.warn('변수 기본값 저장 실패:', error);
+            console.warn('Failed to save variable defaults:', error);
         }
     }
 
@@ -216,13 +216,26 @@ class FolderPromptManager {
     }
 
     async loadCurrentView() {
+        console.log('🔄 loadCurrentView() called');
+        console.log('📍 Current folder ID:', this.currentFolderId);
+        
         try {
+            console.log('🍞 Updating breadcrumb...');
             await this.updateBreadcrumb();
+            console.log('✅ Breadcrumb updated');
+            
+            console.log('📁 Loading folders...');
             await this.loadFolders();
+            console.log('✅ Folders loaded');
+            
+            console.log('📝 Loading prompts...');
             await this.loadPrompts();
+            console.log('✅ Prompts loaded');
+            
+            console.log('🎯 loadCurrentView() completed successfully');
         } catch (error) {
-            console.error('Failed to load current view:', error);
-            showToast('화면을 불러올 수 없습니다.', 'error');
+            console.error('❌ Failed to load current view:', error);
+            showToast('Unable to load screen.', 'error');
         }
     }
 
@@ -304,8 +317,8 @@ class FolderPromptManager {
             this.elements.foldersContainer.innerHTML = folderGridHtml;
             this.bindFolderEvents();
         } catch (error) {
-            console.error('폴더 로딩 실패:', error);
-            showToast('폴더를 불러올 수 없습니다.', 'error');
+            console.error('Failed to load folders:', error);
+            showToast('Unable to load folders.', 'error');
         }
     }
 
@@ -315,7 +328,7 @@ class FolderPromptManager {
         return `
             <div class="folder-card" data-folder-id="${folder.id}" draggable="false">
                 <div class="folder-actions">
-                    <button class="folder-action-btn" data-action="context" data-folder-id="${folder.id}" aria-label="옵션">
+                    <button class="folder-action-btn" data-action="context" data-folder-id="${folder.id}" aria-label="Options">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="1"></circle>
                             <circle cx="12" cy="5" r="1"></circle>
@@ -358,54 +371,81 @@ class FolderPromptManager {
     }
 
     async loadPrompts() {
+        console.log('📝 loadPrompts() called - folder:', this.currentFolderId, 'filter:', this.currentFilter);
+        
         try {
             let prompts;
             
             if (this.currentFilter === 'favorites') {
+                console.log('⭐ Loading favorite prompts...');
                 const allPrompts = await promptStorage.getFavoritePrompts();
                 prompts = allPrompts.filter(p => p.folderId === this.currentFolderId);
+                console.log('⭐ Favorite prompts found:', prompts.length);
             } else if (this.currentSearchTerm) {
+                console.log('🔍 Loading search results for:', this.currentSearchTerm);
                 if (this.currentSearchTerm.length > 0) {
                     prompts = await promptStorage.searchPromptsWithFolderInfo(this.currentSearchTerm);
                 } else {
                     prompts = await promptStorage.getPromptsByFolder(this.currentFolderId);
                 }
+                console.log('🔍 Search prompts found:', prompts.length);
             } else {
+                console.log('📂 Loading prompts for folder:', this.currentFolderId);
                 prompts = await promptStorage.getPromptsByFolder(this.currentFolderId);
+                console.log('📂 Folder prompts found:', prompts.length);
+                console.log('📋 Prompt titles:', prompts.map(p => p.title).slice(0, 3).join(', ') + (prompts.length > 3 ? '...' : ''));
             }
 
             if (this.currentFilter === 'favorites' && this.currentSearchTerm) {
+                console.log('⭐🔍 Applying search filter to favorites...');
                 prompts = prompts.filter(prompt => 
                     prompt.title.toLowerCase().includes(this.currentSearchTerm.toLowerCase()) ||
                     prompt.content.toLowerCase().includes(this.currentSearchTerm.toLowerCase())
                 );
+                console.log('⭐🔍 Filtered favorites:', prompts.length);
             }
 
+            console.log('🔄 Sorting prompts for display...');
             const sortedPrompts = this.sortPromptsForDisplay(prompts);
+            console.log('🎨 Rendering', sortedPrompts.length, 'prompts');
             this.renderPrompts(sortedPrompts);
+            console.log('✅ loadPrompts() completed');
         } catch (error) {
-            console.error('프롬프트 로딩 실패:', error);
-            showToast('프롬프트를 불러올 수 없습니다.', 'error');
+            console.error('❌ Failed to load prompts:', error);
+            showToast('Unable to load prompts.', 'error');
         }
     }
 
     renderPrompts(prompts) {
+        console.log('🎨 renderPrompts() called with', prompts.length, 'prompts');
+        
         const folders = this.elements.foldersContainer.children.length > 0;
+        console.log('📁 Folders container has', this.elements.foldersContainer.children.length, 'children');
         
         if (prompts.length === 0 && !folders) {
+            console.log('📋 No prompts and no folders - showing empty state');
             this.showEmptyState();
             return;
         } else if (prompts.length === 0) {
+            console.log('📋 No prompts but folders exist - clearing prompts container');
             this.elements.promptsContainer.innerHTML = '';
             return;
         }
 
+        console.log('✅ Hiding empty state and rendering prompts');
         this.hideEmptyState();
         
+        console.log('🏗️ Creating HTML for', prompts.length, 'prompts');
         const promptsHtml = prompts.map(prompt => this.createPromptCard(prompt)).join('');
+        console.log('📝 Generated HTML length:', promptsHtml.length);
+        
+        console.log('🎯 Setting innerHTML for prompts container');
         this.elements.promptsContainer.innerHTML = promptsHtml;
         
+        console.log('🔗 Binding prompt events');
         this.bindPromptEvents();
+        
+        console.log('✅ renderPrompts() completed');
     }
 
     createPromptCard(prompt) {
@@ -434,18 +474,18 @@ class FolderPromptManager {
                     <div class="prompt-actions">
                         <button class="action-btn favorite-btn ${prompt.isFavorite ? 'active' : ''}" 
                                 data-action="favorite" data-id="${prompt.id}" 
-                                aria-label="${prompt.isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}">
+                                aria-label="${prompt.isFavorite ? 'Remove from favorites' : 'Add to favorites'}">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="${prompt.isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
                                 <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
                             </svg>
                         </button>
-                        <button class="action-btn edit-btn" data-action="edit" data-id="${prompt.id}" aria-label="편집">
+                        <button class="action-btn edit-btn" data-action="edit" data-id="${prompt.id}" aria-label="Edit">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                             </svg>
                         </button>
-                        <button class="action-btn delete-btn" data-action="delete" data-id="${prompt.id}" aria-label="삭제">
+                        <button class="action-btn delete-btn" data-action="delete" data-id="${prompt.id}" aria-label="Delete">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="3,6 5,6 21,6"></polyline>
                                 <path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6m3,0V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6"></path>
@@ -596,11 +636,11 @@ class FolderPromptManager {
     async movePromptToFolder(promptId, targetFolderId) {
         try {
             await promptStorage.movePromptToFolder(promptId, targetFolderId);
-            showToast('프롬프트가 이동되었습니다.');
+            showToast('Prompt moved successfully.');
             await this.loadCurrentView();
         } catch (error) {
-            console.error('프롬프트 이동 실패:', error);
-            showToast('프롬프트를 이동할 수 없습니다.', 'error');
+            console.error('Failed to move prompt:', error);
+            showToast('Unable to move prompt.', 'error');
         }
     }
 
@@ -707,8 +747,8 @@ class FolderPromptManager {
             await this.loadCurrentView();
             
         } catch (error) {
-            console.error('프롬프트 재정렬 실패:', error);
-            showToast('프롬프트 순서를 변경할 수 없습니다.', 'error');
+            console.error('Failed to reorder prompts:', error);
+            showToast('Unable to change prompt order.', 'error');
         }
     }
 
@@ -739,7 +779,7 @@ class FolderPromptManager {
                 e.preventDefault();
                 
                 if (folderId === this.currentFolderId) {
-                    showToast('같은 폴더로는 이동할 수 없습니다.', 'error');
+                    showToast('Cannot move to the same folder.', 'error');
                     return;
                 }
                 
@@ -791,7 +831,7 @@ class FolderPromptManager {
 
     resetPromptForm() {
         this.editingPromptId = null;
-        this.elements.modalTitle.textContent = '새 프롬프트 추가';
+        this.elements.modalTitle.textContent = 'Add New Prompt';
         this.elements.promptForm.reset();
         this.elements.titleCharCount.textContent = '0';
         this.elements.variablesList.textContent = '없음';
@@ -799,7 +839,7 @@ class FolderPromptManager {
 
     resetFolderForm() {
         this.editingFolderId = null;
-        this.elements.folderModalTitle.textContent = '새 폴더 생성';
+        this.elements.folderModalTitle.textContent = 'Create New Folder';
         this.elements.folderForm.reset();
         this.elements.folderNameCharCount.textContent = '0';
         this.selectIcon(this.elements.iconSelector.querySelector('.icon-option'));
@@ -821,7 +861,7 @@ class FolderPromptManager {
         const content = this.elements.promptContent.value.trim();
         
         if (!title || !content) {
-            showToast('제목과 내용을 모두 입력해주세요.', 'error');
+            showToast('Please enter both title and content.', 'error');
             return;
         }
 
@@ -834,17 +874,17 @@ class FolderPromptManager {
 
             if (this.editingPromptId) {
                 await promptStorage.updatePrompt(this.editingPromptId, promptData);
-                showToast('프롬프트가 수정되었습니다.');
+                showToast('Prompt updated successfully.');
             } else {
                 await promptStorage.savePrompt(promptData);
-                showToast('프롬프트가 저장되었습니다.');
+                showToast('Prompt saved successfully.');
             }
             
             this.hidePromptModal();
             await this.loadCurrentView();
         } catch (error) {
-            console.error('프롬프트 저장 실패:', error);
-            showToast(error.message || '프롬프트를 저장할 수 없습니다.', 'error');
+            console.error('Failed to save prompt:', error);
+            showToast(error.message || 'Unable to save prompt.', 'error');
         }
     }
 
@@ -854,7 +894,7 @@ class FolderPromptManager {
         const name = this.elements.folderName.value.trim();
         
         if (!name) {
-            showToast('폴더명을 입력해주세요.', 'error');
+            showToast('Please enter a folder name.', 'error');
             return;
         }
 
@@ -867,17 +907,17 @@ class FolderPromptManager {
 
             if (this.editingFolderId) {
                 await promptStorage.updateFolder(this.editingFolderId, folderData);
-                showToast('폴더가 수정되었습니다.');
+                showToast('Folder updated successfully.');
             } else {
                 await promptStorage.saveFolder(folderData);
-                showToast('폴더가 생성되었습니다.');
+                showToast('Folder created successfully.');
             }
             
             this.hideFolderModal();
             await this.loadCurrentView();
         } catch (error) {
-            console.error('폴더 저장 실패:', error);
-            showToast(error.message || '폴더를 저장할 수 없습니다.', 'error');
+            console.error('Failed to save folder:', error);
+            showToast(error.message || 'Unable to save folder.', 'error');
         }
     }
 
@@ -886,7 +926,7 @@ class FolderPromptManager {
         try {
             const prompt = await promptStorage.getPrompt(promptId);
             if (!prompt) {
-                showToast('프롬프트를 찾을 수 없습니다.', 'error');
+                showToast('Prompt not found.', 'error');
                 return;
             }
 
@@ -896,8 +936,8 @@ class FolderPromptManager {
                 await this.copyPromptToClipboard(prompt.content, promptId);
             }
         } catch (error) {
-            console.error('프롬프트 처리 실패:', error);
-            showToast('프롬프트를 처리할 수 없습니다.', 'error');
+            console.error('Failed to process prompt:', error);
+            showToast('Unable to process prompt.', 'error');
         }
     }
 
@@ -920,8 +960,8 @@ class FolderPromptManager {
             await promptStorage.toggleFavorite(promptId);
             await this.loadCurrentView();
         } catch (error) {
-            console.error('즐겨찾기 토글 실패:', error);
-            showToast('즐겨찾기를 변경할 수 없습니다.', 'error');
+            console.error('Failed to toggle favorite:', error);
+            showToast('Unable to change favorite status.', 'error');
         }
     }
 
@@ -929,12 +969,12 @@ class FolderPromptManager {
         try {
             const prompt = await promptStorage.getPrompt(promptId);
             if (!prompt) {
-                showToast('프롬프트를 찾을 수 없습니다.', 'error');
+                showToast('Prompt not found.', 'error');
                 return;
             }
 
             this.editingPromptId = promptId;
-            this.elements.modalTitle.textContent = '프롬프트 편집';
+            this.elements.modalTitle.textContent = 'Edit Prompt';
             this.elements.promptTitle.value = prompt.title;
             this.elements.promptContent.value = prompt.content;
             
@@ -943,23 +983,23 @@ class FolderPromptManager {
             
             this.showPromptModal();
         } catch (error) {
-            console.error('프롬프트 편집 실패:', error);
-            showToast('프롬프트를 편집할 수 없습니다.', 'error');
+            console.error('Failed to edit prompt:', error);
+            showToast('Unable to edit prompt.', 'error');
         }
     }
 
     async deletePrompt(promptId) {
-        if (!confirm('정말로 이 프롬프트를 삭제하시겠습니까?')) {
+        if (!confirm('Are you sure you want to delete this prompt?')) {
             return;
         }
 
         try {
             await promptStorage.deletePrompt(promptId);
-            showToast('프롬프트가 삭제되었습니다.');
+            showToast('Prompt deleted successfully.');
             await this.loadCurrentView();
         } catch (error) {
-            console.error('프롬프트 삭제 실패:', error);
-            showToast('프롬프트를 삭제할 수 없습니다.', 'error');
+            console.error('Failed to delete prompt:', error);
+            showToast('Unable to delete prompt.', 'error');
         }
     }
 
@@ -984,12 +1024,12 @@ class FolderPromptManager {
         try {
             const folder = await promptStorage.getFolder(this.contextFolderId);
             if (!folder) {
-                showToast('폴더를 찾을 수 없습니다.', 'error');
+                showToast('Folder not found.', 'error');
                 return;
             }
 
             this.editingFolderId = this.contextFolderId;
-            this.elements.folderModalTitle.textContent = '폴더 편집';
+            this.elements.folderModalTitle.textContent = 'Edit Folder';
             this.elements.folderName.value = folder.name;
             
             // Select the current icon
@@ -1002,24 +1042,24 @@ class FolderPromptManager {
             this.hideContextMenu();
             this.showFolderModal();
         } catch (error) {
-            console.error('폴더 편집 실패:', error);
-            showToast('폴더를 편집할 수 없습니다.', 'error');
+            console.error('Failed to edit folder:', error);
+            showToast('Unable to edit folder.', 'error');
         }
     }
 
     async handleDeleteFolder() {
-        if (!confirm('정말로 이 폴더를 삭제하시겠습니까? 폴더 안의 모든 프롬프트와 하위 폴더는 상위 폴더로 이동됩니다.')) {
+        if (!confirm('Are you sure you want to delete this folder? All prompts and subfolders will be moved to the parent folder.')) {
             return;
         }
 
         try {
             await promptStorage.deleteFolder(this.contextFolderId);
-            showToast('폴더가 삭제되었습니다.');
+            showToast('Folder deleted successfully.');
             this.hideContextMenu();
             await this.loadCurrentView();
         } catch (error) {
-            console.error('폴더 삭제 실패:', error);
-            showToast(error.message || '폴더를 삭제할 수 없습니다.', 'error');
+            console.error('Failed to delete folder:', error);
+            showToast(error.message || 'Unable to delete folder.', 'error');
         }
     }
 
@@ -1062,7 +1102,7 @@ class FolderPromptManager {
 
     updateVariablesList(content) {
         const variables = extractVariables(content);
-        this.elements.variablesList.textContent = variables.length > 0 ? variables.join(', ') : '없음';
+        this.elements.variablesList.textContent = variables.length > 0 ? variables.join(', ') : 'None';
     }
 
     showEmptyState() {
@@ -1116,7 +1156,7 @@ class FolderPromptManager {
     // Variable Modal (keeping existing functionality)
     showVariableModal(prompt) {
         this.currentPrompt = prompt;
-        this.elements.variableModalTitle.textContent = `변수 입력 - ${prompt.title}`;
+        this.elements.variableModalTitle.textContent = `Enter Variables - ${prompt.title}`;
         
         this.renderPromptContent();
         
@@ -1221,21 +1261,21 @@ class FolderPromptManager {
         try {
             const success = await copyToClipboard(finalContent);
             if (success) {
-                showToast('클립보드에 복사되었습니다.');
+                showToast('Copied to clipboard.');
                 
                 promptStorage.incrementUsageCount(promptId).catch(error => {
-                    console.warn('사용 횟수 업데이트 실패:', error);
+                    console.warn('Failed to update usage count:', error);
                 });
                 
                 this.loadCurrentView().catch(error => {
-                    console.warn('프롬프트 목록 새로고침 실패:', error);
+                    console.warn('Failed to refresh prompt list:', error);
                 });
             } else {
-                showToast('클립보드 복사에 실패했습니다.', 'error');
+                showToast('Failed to copy to clipboard.', 'error');
             }
         } catch (error) {
-            console.error('클립보드 복사 실패:', error);
-            showToast('클립보드 복사에 실패했습니다.', 'error');
+            console.error('Failed to copy to clipboard:', error);
+            showToast('Failed to copy to clipboard.', 'error');
         }
     }
 
@@ -1244,14 +1284,50 @@ class FolderPromptManager {
             const success = await copyToClipboard(content);
             if (success) {
                 await promptStorage.incrementUsageCount(promptId);
-                showToast('클립보드에 복사되었습니다.');
+                showToast('Copied to clipboard.');
                 await this.loadCurrentView();
             } else {
-                showToast('클립보드 복사에 실패했습니다.', 'error');
+                showToast('Failed to copy to clipboard.', 'error');
             }
         } catch (error) {
-            console.error('클립보드 복사 실패:', error);
-            showToast('클립보드 복사에 실패했습니다.', 'error');
+            console.error('Failed to copy to clipboard:', error);
+            showToast('Failed to copy to clipboard.', 'error');
+        }
+    }
+
+    // Force complete UI refresh method
+    async forceCompleteRefresh() {
+        console.log('🔥 forceCompleteRefresh() - Performing complete UI reset and refresh');
+        
+        try {
+            // Clear current UI state
+            console.log('🧹 Clearing current UI elements...');
+            this.elements.foldersContainer.innerHTML = '';
+            this.elements.promptsContainer.innerHTML = '';
+            this.elements.breadcrumbContainer.innerHTML = '';
+            
+            // Reset containers to initial state
+            this.elements.foldersContainer.style.display = 'none';
+            this.elements.emptyState.style.display = 'none';
+            
+            console.log('📊 Fetching fresh data from storage...');
+            // Verify we can read from storage
+            const allPrompts = await promptStorage.getAllPrompts();
+            const allFolders = await promptStorage.getAllFolders();
+            console.log('📊 Fresh storage data:', {
+                prompts: allPrompts.length,
+                folders: allFolders.length,
+                promptsInHome: allPrompts.filter(p => p.folderId === 'home').length
+            });
+            
+            // Force reload of current view with fresh data
+            console.log('🔄 Loading fresh view...');
+            await this.loadCurrentView();
+            
+            console.log('✅ forceCompleteRefresh() completed');
+        } catch (error) {
+            console.error('❌ forceCompleteRefresh() failed:', error);
+            throw error;
         }
     }
 
@@ -1292,19 +1368,30 @@ class FolderPromptManager {
     }
 
     resetImportForm() {
+        console.log('🔄 Resetting import form...');
         this.elements.fileInput.value = '';
         this.elements.importOptions.style.display = 'none';
         this.elements.fileDropZone.classList.remove('dragover');
         const mergeOption = document.querySelector('input[name="importMode"][value="merge"]');
         if (mergeOption) mergeOption.checked = true;
         this.importData = null;
+        console.log('✅ Import form reset completed');
     }
 
     // File Handling Methods
     handleFileSelect(e) {
+        console.log('📂 File input change event triggered');
         const file = e.target.files[0];
+        
+        // Immediately clear the input value to allow re-selection of same file
+        e.target.value = '';
+        console.log('🔄 File input cleared immediately');
+        
         if (file) {
+            console.log('📄 File selected:', file.name, 'Size:', file.size);
             this.processFile(file);
+        } else {
+            console.log('❌ No file selected');
         }
     }
 
@@ -1334,25 +1421,47 @@ class FolderPromptManager {
     }
 
     async processFile(file) {
+        console.log('🔍 Processing file:', file.name, 'Type:', file.type, 'Size:', file.size);
+        
         if (!file.type.includes('json') && !file.name.endsWith('.json')) {
-            showToast('JSON 파일만 업로드할 수 있습니다.', 'error');
+            console.error('❌ Invalid file type:', file.type);
+            showToast('Only JSON files can be uploaded.', 'error');
             return;
         }
 
         try {
+            console.log('📖 Reading file as text...');
             const text = await this.readFileAsText(file);
-            const data = JSON.parse(text);
+            console.log('📄 File content length:', text.length);
+            console.log('📄 File content preview:', text.substring(0, 200) + '...');
             
-            if (this.validateImportData(data)) {
+            console.log('🔄 Parsing JSON...');
+            const data = JSON.parse(text);
+            console.log('✅ JSON parsed successfully:', data);
+            console.log('📊 Data structure:', {
+                hasPrompts: !!data.prompts,
+                hasFolders: !!data.folders,
+                isArray: Array.isArray(data),
+                promptCount: data.prompts ? data.prompts.length : 'N/A',
+                folderCount: data.folders ? data.folders.length : 'N/A'
+            });
+            
+            console.log('🔍 Validating import data...');
+            const isValid = this.validateImportData(data);
+            console.log('✅ Validation result:', isValid);
+            
+            if (isValid) {
                 this.importData = data;
+                console.log('💾 Import data stored:', this.importData);
                 this.elements.importOptions.style.display = 'block';
-                showToast('파일이 성공적으로 로드되었습니다.');
+                showToast('File loaded successfully.');
             } else {
-                showToast('올바르지 않은 데이터 형식입니다.', 'error');
+                console.error('❌ Data validation failed');
+                showToast('Invalid data format.', 'error');
             }
         } catch (error) {
-            console.error('파일 처리 실패:', error);
-            showToast('파일을 읽을 수 없습니다.', 'error');
+            console.error('❌ Failed to process file:', error);
+            showToast('Unable to read file.', 'error');
         }
     }
 
@@ -1366,76 +1475,365 @@ class FolderPromptManager {
     }
 
     validateImportData(data) {
-        // Basic validation for the expected data structure
-        return data && 
-               typeof data === 'object' && 
-               (data.prompts || data.folders || Array.isArray(data));
+        console.log('🔍 Validating import data structure...');
+        
+        if (!data) {
+            console.error('❌ Data is null or undefined');
+            return false;
+        }
+        
+        if (typeof data !== 'object') {
+            console.error('❌ Data is not an object, type:', typeof data);
+            return false;
+        }
+        
+        // Check for legacy format (array of prompts)
+        if (Array.isArray(data)) {
+            console.log('✅ Legacy format detected: array of prompts');
+            if (data.length === 0) {
+                console.warn('⚠️ Array is empty but valid');
+                return true;
+            }
+            // Check if first item looks like a prompt
+            const firstItem = data[0];
+            if (firstItem && (firstItem.title || firstItem.content)) {
+                console.log('✅ First array item looks like a prompt');
+                return true;
+            }
+            console.error('❌ Array items don\'t look like prompts');
+            return false;
+        }
+        
+        // Check for new structured format
+        const hasPrompts = data.prompts && Array.isArray(data.prompts);
+        const hasFolders = data.folders && Array.isArray(data.folders);
+        
+        console.log('📊 Structure check:', {
+            hasPrompts,
+            hasFolders,
+            promptCount: hasPrompts ? data.prompts.length : 0,
+            folderCount: hasFolders ? data.folders.length : 0
+        });
+        
+        if (hasPrompts || hasFolders) {
+            console.log('✅ Valid structured format detected');
+            return true;
+        }
+        
+        console.error('❌ Data doesn\'t match any expected format');
+        console.log('Data keys:', Object.keys(data));
+        return false;
     }
 
     async handleImport() {
+        console.log('🚀 Starting import process...');
+        console.log('⏰ Timestamp:', new Date().toISOString());
+        
         if (!this.importData) {
-            showToast('가져올 데이터가 없습니다.', 'error');
+            console.error('❌ No import data available');
+            showToast('No data to import.', 'error');
             return;
         }
 
         const importMode = document.querySelector('input[name="importMode"]:checked').value;
+        console.log('📋 Import mode:', importMode);
+        console.log('📦 Import data structure:', {
+            type: Array.isArray(this.importData) ? 'array' : 'object',
+            keys: Array.isArray(this.importData) ? ['length: ' + this.importData.length] : Object.keys(this.importData),
+            promptCount: this.importData.prompts ? this.importData.prompts.length : 'N/A',
+            folderCount: this.importData.folders ? this.importData.folders.length : 'N/A'
+        });
         
         try {
+            // Check current storage state before import
+            const currentPrompts = await promptStorage.getAllPrompts();
+            const currentFolders = await promptStorage.getAllFolders();
+            console.log('📊 Pre-import storage state:', {
+                existingPrompts: currentPrompts.length,
+                existingFolders: currentFolders.length
+            });
+            
             if (importMode === 'replace') {
-                // Clear all existing data
+                console.log('🗑️ Clearing all existing data...');
                 await promptStorage.clearAllData();
+                console.log('✅ Existing data cleared');
             }
 
-            // Import the data
+            console.log('💾 Importing data to storage...');
             await this.importDataToStorage(this.importData);
+            console.log('✅ Data imported to storage successfully');
             
-            showToast('데이터를 성공적으로 가져왔습니다.');
+            // Check storage state after import
+            const newPrompts = await promptStorage.getAllPrompts();
+            const newFolders = await promptStorage.getAllFolders();
+            console.log('📊 Post-import storage state:', {
+                totalPrompts: newPrompts.length,
+                totalFolders: newFolders.length,
+                promptTitles: newPrompts.map(p => p.title).slice(0, 3).join(', ') + (newPrompts.length > 3 ? '...' : ''),
+                folderNames: newFolders.filter(f => f.id !== 'home').map(f => f.name).slice(0, 3).join(', ')
+            });
+            
+            console.log('🧹 Clearing any cached state...');
+            // Clear any cached state that might prevent refresh
+            this.currentSearchTerm = '';
+            this.currentFilter = 'all';
+            
+            // Reset filter UI
+            this.elements.searchInput.value = '';
+            this.elements.filterBtns.forEach(btn => btn.classList.remove('active'));
+            document.querySelector('[data-filter="all"]').classList.add('active');
+            
+            // Small delay to ensure all storage operations are complete
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            console.log('🏠 Forcing navigation to home folder...');
+            // Force navigation to home to ensure we see imported data
+            this.currentFolderId = 'home';
+            
+            console.log('🔄 Performing complete UI refresh...');
+            await this.forceCompleteRefresh();
+            console.log('✅ Complete UI refresh finished');
+            
+            showToast('Data imported successfully.');
             this.hideImportModal();
-            await this.loadCurrentView();
+            
+            console.log('🎉 Import process completed successfully');
+            console.log('⏰ Completion timestamp:', new Date().toISOString());
         } catch (error) {
-            console.error('데이터 가져오기 실패:', error);
-            showToast('데이터 가져오기에 실패했습니다.', 'error');
+            console.error('❌ Failed to import data:', error);
+            console.error('Error details:', error.stack);
+            console.error('Error name:', error.name);
+            console.error('Error message:', error.message);
+            showToast('Failed to import data.', 'error');
         }
     }
 
     async importDataToStorage(data) {
+        console.log('📂 Importing data to storage, format detection...');
+        
         // Handle different data formats
         if (Array.isArray(data)) {
-            // Legacy format: array of prompts
+            console.log('📜 Legacy format detected: array of prompts');
+            console.log('📊 Processing', data.length, 'legacy prompts');
+            
+            // Collect all valid prompts first
+            const validPrompts = [];
             for (const prompt of data) {
                 if (prompt.title && prompt.content) {
-                    await promptStorage.savePrompt({
+                    console.log('📋 Processing legacy prompt:', prompt.title);
+                    console.log('📊 Legacy prompt fields:', Object.keys(prompt));
+                    
+                    // Pass all available fields (except id to avoid conflicts)
+                    const promptData = {
                         title: prompt.title,
                         content: prompt.content,
                         folderId: prompt.folderId || 'home',
-                        isFavorite: prompt.isFavorite || false
-                    });
-                }
-            }
-        } else if (data.prompts || data.folders) {
-            // New format: structured data
-            if (data.folders) {
-                for (const folder of data.folders) {
-                    await promptStorage.saveFolder({
-                        name: folder.name,
-                        icon: folder.icon || '📁',
-                        parentId: folder.parentId
-                    });
+                        isFavorite: prompt.isFavorite || false,
+                        usageCount: prompt.usageCount || 0,
+                        createdAt: prompt.createdAt || Date.now()
+                    };
+                    
+                    // Add optional fields if they exist in legacy format
+                    if (prompt.order !== undefined) {
+                        promptData.order = prompt.order;
+                        console.log('📋 Including legacy order field:', prompt.order);
+                    }
+                    if (prompt.updatedAt !== undefined) {
+                        promptData.updatedAt = prompt.updatedAt;
+                        console.log('🕒 Including legacy updatedAt field:', prompt.updatedAt);
+                    }
+                    if (prompt.variables !== undefined) {
+                        promptData.variables = prompt.variables;
+                        console.log('🔤 Including legacy variables field:', prompt.variables);
+                    }
+                    
+                    validPrompts.push(promptData);
+                } else {
+                    console.warn('⚠️ Skipping invalid legacy prompt:', prompt);
                 }
             }
             
+            // Batch save all prompts at once to avoid race conditions
+            if (validPrompts.length > 0) {
+                console.log('💾 Batch saving', validPrompts.length, 'legacy prompts...');
+                await this.batchSavePrompts(validPrompts);
+                console.log('✅ Legacy import completed:', validPrompts.length, 'prompts imported');
+            }
+            
+        } else if (data.prompts || data.folders) {
+            console.log('🏗️ New structured format detected');
+            
+            // Import folders first
+            if (data.folders) {
+                console.log('📁 Processing', data.folders.length, 'folders');
+                const validFolders = [];
+                
+                for (const folder of data.folders) {
+                    if (folder.name && folder.id !== 'home') { // Skip home folder
+                        console.log('📋 Processing folder:', folder.name);
+                        console.log('📊 Folder fields:', Object.keys(folder));
+                        
+                        // Pass all available fields (except id to avoid conflicts)
+                        const folderData = {
+                            name: folder.name,
+                            icon: folder.icon || '📁',
+                            parentId: folder.parentId === 'home' ? null : folder.parentId,
+                            createdAt: folder.createdAt || Date.now()
+                        };
+                        
+                        // Add optional fields if they exist
+                        if (folder.color !== undefined) {
+                            folderData.color = folder.color;
+                            console.log('🎨 Including color field:', folder.color);
+                        }
+                        
+                        validFolders.push(folderData);
+                    } else {
+                        console.log('⏭️ Skipping home folder or invalid folder:', folder);
+                    }
+                }
+                
+                // Batch save folders
+                if (validFolders.length > 0) {
+                    console.log('💾 Batch saving', validFolders.length, 'folders...');
+                    await this.batchSaveFolders(validFolders);
+                    console.log('✅ Folder import completed:', validFolders.length, 'folders imported');
+                }
+            }
+            
+            // Import prompts
             if (data.prompts) {
+                console.log('📝 Processing', data.prompts.length, 'prompts');
+                const validPrompts = [];
+                
                 for (const prompt of data.prompts) {
                     if (prompt.title && prompt.content) {
-                        await promptStorage.savePrompt({
+                        console.log('📋 Processing prompt:', prompt.title);
+                        console.log('📊 Prompt fields:', Object.keys(prompt));
+                        
+                        // Pass all available fields (except id to avoid conflicts)
+                        const promptData = {
                             title: prompt.title,
                             content: prompt.content,
                             folderId: prompt.folderId || 'home',
-                            isFavorite: prompt.isFavorite || false
-                        });
+                            isFavorite: prompt.isFavorite || false,
+                            usageCount: prompt.usageCount || 0,
+                            createdAt: prompt.createdAt || Date.now()
+                        };
+                        
+                        // Add optional fields if they exist
+                        if (prompt.order !== undefined) {
+                            promptData.order = prompt.order;
+                            console.log('📋 Including order field:', prompt.order);
+                        }
+                        if (prompt.updatedAt !== undefined) {
+                            promptData.updatedAt = prompt.updatedAt;
+                            console.log('🕒 Including updatedAt field:', prompt.updatedAt);
+                        }
+                        if (prompt.variables !== undefined) {
+                            promptData.variables = prompt.variables;
+                            console.log('🔤 Including variables field:', prompt.variables);
+                        }
+                        
+                        validPrompts.push(promptData);
+                    } else {
+                        console.warn('⚠️ Skipping invalid prompt:', prompt);
                     }
                 }
+                
+                // Batch save all prompts at once to avoid race conditions
+                if (validPrompts.length > 0) {
+                    console.log('💾 Batch saving', validPrompts.length, 'prompts...');
+                    await this.batchSavePrompts(validPrompts);
+                    console.log('✅ Prompt import completed:', validPrompts.length, 'prompts imported');
+                }
             }
+        } else {
+            console.error('❌ Unknown data format:', data);
+            throw new Error('Unknown data format');
+        }
+        
+        console.log('🎯 Import to storage completed successfully');
+    }
+
+    // Batch save methods to avoid race conditions during import
+    async batchSavePrompts(promptsData) {
+        try {
+            console.log('🔄 Starting batch save for', promptsData.length, 'prompts');
+            
+            // Get current prompts from storage
+            const currentPrompts = await promptStorage.getAllPrompts();
+            console.log('📊 Current prompts in storage:', currentPrompts.length);
+            
+            // Process each prompt data into full prompt objects
+            const newPrompts = promptsData.map(promptData => {
+                const newPrompt = {
+                    id: generateUUID(),
+                    title: promptData.title,
+                    content: promptData.content,
+                    folderId: promptData.folderId || 'home',
+                    isFavorite: promptData.isFavorite || false,
+                    createdAt: promptData.createdAt || Date.now(),
+                    usageCount: promptData.usageCount || 0,
+                    variables: extractVariables(promptData.content),
+                    updatedAt: Date.now(),
+                    order: promptData.order || Date.now()
+                };
+                
+                console.log('✨ Created prompt object:', newPrompt.title, 'with ID:', newPrompt.id);
+                return newPrompt;
+            });
+            
+            // Combine current and new prompts
+            const allPrompts = [...currentPrompts, ...newPrompts];
+            console.log('📦 Total prompts to save:', allPrompts.length);
+            
+            // Save all prompts at once
+            await chrome.storage.local.set({ 'prompt_manager_data': allPrompts });
+            console.log('✅ Batch save completed successfully');
+            
+            return newPrompts;
+        } catch (error) {
+            console.error('❌ Batch save prompts failed:', error);
+            throw new Error('Failed to batch save prompts');
+        }
+    }
+
+    async batchSaveFolders(foldersData) {
+        try {
+            console.log('🔄 Starting batch save for', foldersData.length, 'folders');
+            
+            // Get current folders from storage
+            const currentFolders = await promptStorage.getAllFolders();
+            console.log('📊 Current folders in storage:', currentFolders.length);
+            
+            // Process each folder data into full folder objects
+            const newFolders = foldersData.map(folderData => {
+                const newFolder = {
+                    id: generateUUID(),
+                    name: folderData.name,
+                    icon: folderData.icon || '📁',
+                    parentId: folderData.parentId || null,
+                    createdAt: folderData.createdAt || Date.now(),
+                    color: folderData.color || null
+                };
+                
+                console.log('✨ Created folder object:', newFolder.name, 'with ID:', newFolder.id);
+                return newFolder;
+            });
+            
+            // Combine current and new folders
+            const allFolders = [...currentFolders, ...newFolders];
+            console.log('📦 Total folders to save:', allFolders.length);
+            
+            // Save all folders at once
+            await chrome.storage.local.set({ 'prompt_manager_folders': allFolders });
+            console.log('✅ Batch save completed successfully');
+            
+            return newFolders;
+        } catch (error) {
+            console.error('❌ Batch save folders failed:', error);
+            throw new Error('Failed to batch save folders');
         }
     }
 
@@ -1470,10 +1868,10 @@ class FolderPromptManager {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             
-            showToast('데이터를 성공적으로 내보냈습니다.');
+            showToast('Data exported successfully.');
         } catch (error) {
-            console.error('데이터 내보내기 실패:', error);
-            showToast('데이터 내보내기에 실패했습니다.', 'error');
+            console.error('Failed to export data:', error);
+            showToast('Failed to export data.', 'error');
         }
     }
 }

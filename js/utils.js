@@ -18,17 +18,17 @@ function formatDate(timestamp) {
     const month = 30 * day;
     
     if (diff < minute) {
-        return '방금 전';
+        return 'Just now';
     } else if (diff < hour) {
-        return `${Math.floor(diff / minute)}분 전`;
+        return `${Math.floor(diff / minute)} min ago`;
     } else if (diff < day) {
-        return `${Math.floor(diff / hour)}시간 전`;
+        return `${Math.floor(diff / hour)}h ago`;
     } else if (diff < week) {
-        return `${Math.floor(diff / day)}일 전`;
+        return `${Math.floor(diff / day)}d ago`;
     } else if (diff < month) {
-        return `${Math.floor(diff / week)}주 전`;
+        return `${Math.floor(diff / week)}w ago`;
     } else {
-        return date.toLocaleDateString('ko-KR', {
+        return date.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric'
@@ -90,7 +90,7 @@ async function copyToClipboard(text) {
             return result;
         }
     } catch (error) {
-        console.error('클립보드 복사 실패:', error);
+        console.error('Failed to copy to clipboard:', error);
         return false;
     }
 }
@@ -176,7 +176,7 @@ function sortPrompts(prompts, sortBy = 'recent') {
                 if (a.isFavorite !== b.isFavorite) {
                     return b.isFavorite - a.isFavorite;
                 }
-                return a.title.localeCompare(b.title, 'ko');
+                return a.title.localeCompare(b.title, 'en');
             });
             
         case 'usage':
@@ -223,7 +223,7 @@ function exportToFile(data, filename = 'prompt-manager-backup.json') {
         URL.revokeObjectURL(url);
         return true;
     } catch (error) {
-        console.error('파일 내보내기 실패:', error);
+        console.error('Failed to export file:', error);
         return false;
     }
 }
@@ -233,7 +233,7 @@ function readFileAsText(file) {
         const reader = new FileReader();
         
         reader.onload = (e) => resolve(e.target.result);
-        reader.onerror = (e) => reject(new Error('파일 읽기 실패'));
+        reader.onerror = (e) => reject(new Error('Failed to read file'));
         
         reader.readAsText(file);
     });
@@ -242,7 +242,7 @@ function readFileAsText(file) {
 function getVariableInputHtml(variables, defaults = {}) {
     return variables.map(variable => {
         const defaultValue = defaults[variable] || '';
-        const placeholder = defaultValue ? `기본값: ${defaultValue}` : '값을 입력하세요...';
+        const placeholder = defaultValue ? `Default: ${defaultValue}` : 'Enter value...';
         
         return `
             <div class="variable-input-group">
