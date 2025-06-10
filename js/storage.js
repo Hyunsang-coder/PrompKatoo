@@ -550,6 +550,26 @@ class PromptStorage {
             return null;
         }
     }
+
+    async clearAllData() {
+        try {
+            // Clear all prompts and folders, but keep home folder
+            await chrome.storage.local.set({
+                [this.storageKey]: [],
+                [this.foldersKey]: [{
+                    id: 'home',
+                    name: 'Home',
+                    icon: '🏠',
+                    parentId: null,
+                    createdAt: Date.now(),
+                    color: null
+                }]
+            });
+        } catch (error) {
+            console.error('데이터 초기화 실패:', error);
+            throw new Error('데이터를 초기화할 수 없습니다.');
+        }
+    }
 }
 
 const promptStorage = new PromptStorage();

@@ -18,6 +18,7 @@ class FolderPromptManager {
     initializeElements() {
         this.elements = {
             // Header
+            settingsBtn: document.getElementById('settingsBtn'),
             addBtn: document.getElementById('addBtn'),
             
             // Breadcrumb
@@ -33,6 +34,19 @@ class FolderPromptManager {
             promptsContainer: document.getElementById('promptsContainer'),
             emptyState: document.getElementById('emptyState'),
             
+            // Dropdown and Import/Export
+            settingsDropdown: document.getElementById('settingsDropdown'),
+            exportBtn: document.getElementById('exportBtn'),
+            importBtn: document.getElementById('importBtn'),
+            importModal: document.getElementById('importModal'),
+            closeImportModalBtn: document.getElementById('closeImportModalBtn'),
+            fileDropZone: document.getElementById('fileDropZone'),
+            fileInput: document.getElementById('fileInput'),
+            selectFileBtn: document.getElementById('selectFileBtn'),
+            importOptions: document.getElementById('importOptions'),
+            cancelImportBtn: document.getElementById('cancelImportBtn'),
+            confirmImportBtn: document.getElementById('confirmImportBtn'),
+
             // Add Modal
             addModal: document.getElementById('addModal'),
             closeAddModalBtn: document.getElementById('closeAddModalBtn'),
@@ -82,8 +96,24 @@ class FolderPromptManager {
 
     bindEvents() {
         // Header events
+        this.elements.settingsBtn.addEventListener('click', (e) => this.toggleSettingsDropdown(e));
         this.elements.addBtn.addEventListener('click', () => this.showAddModal());
         
+        // Export/Import events
+        this.elements.exportBtn.addEventListener('click', () => this.handleExport());
+        this.elements.importBtn.addEventListener('click', () => this.showImportModal());
+        this.elements.closeImportModalBtn.addEventListener('click', () => this.hideImportModal());
+        this.elements.selectFileBtn.addEventListener('click', () => this.elements.fileInput.click());
+        this.elements.cancelImportBtn.addEventListener('click', () => this.hideImportModal());
+        this.elements.confirmImportBtn.addEventListener('click', () => this.handleImport());
+        
+        // File handling events
+        this.elements.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
+        this.elements.fileDropZone.addEventListener('click', () => this.elements.fileInput.click());
+        this.elements.fileDropZone.addEventListener('dragover', (e) => this.handleDragOver(e));
+        this.elements.fileDropZone.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+        this.elements.fileDropZone.addEventListener('drop', (e) => this.handleFileDrop(e));
+
         // Add modal events
         this.elements.closeAddModalBtn.addEventListener('click', () => this.hideAddModal());
         this.elements.addPromptBtn.addEventListener('click', () => this.showPromptModal());
@@ -130,6 +160,9 @@ class FolderPromptManager {
         // Modal backdrop events
         this.elements.addModal.addEventListener('click', (e) => {
             if (e.target === this.elements.addModal) this.hideAddModal();
+        });
+        this.elements.importModal.addEventListener('click', (e) => {
+            if (e.target === this.elements.importModal) this.hideImportModal();
         });
         this.elements.promptModal.addEventListener('click', (e) => {
             if (e.target === this.elements.promptModal) this.hidePromptModal();
@@ -1043,12 +1076,17 @@ class FolderPromptManager {
         if (!e.target.closest('.context-menu') && !e.target.closest('[data-action="context"]')) {
             this.hideContextMenu();
         }
+        if (!e.target.closest('.dropdown-menu') && !e.target.closest('#settingsBtn')) {
+            this.hideSettingsDropdown();
+        }
     }
 
     handleKeydown(e) {
         if (e.key === 'Escape') {
             if (this.elements.addModal.classList.contains('show')) {
                 this.hideAddModal();
+            } else if (this.elements.importModal.classList.contains('show')) {
+                this.hideImportModal();
             } else if (this.elements.promptModal.classList.contains('show')) {
                 this.hidePromptModal();
             } else if (this.elements.folderModal.classList.contains('show')) {
@@ -1057,6 +1095,8 @@ class FolderPromptManager {
                 this.hideVariableModal();
             } else if (this.elements.contextMenu.classList.contains('show')) {
                 this.hideContextMenu();
+            } else if (this.elements.settingsDropdown.classList.contains('show')) {
+                this.hideSettingsDropdown();
             }
         }
         
@@ -1210,6 +1250,224 @@ class FolderPromptManager {
         } catch (error) {
             console.error('클립보드 복사 실패:', error);
             showToast('클립보드 복사에 실패했습니다.', 'error');
+        }
+    }
+
+    // Settings Dropdown Methods
+    toggleSettingsDropdown(e) {
+        e.stopPropagation();
+        const isVisible = this.elements.settingsDropdown.classList.contains('show');
+        if (isVisible) {
+            this.hideSettingsDropdown();
+        } else {
+            this.showSettingsDropdown();
+        }
+    }
+
+    showSettingsDropdown() {
+        this.elements.settingsDropdown.classList.add('show');
+    }
+
+    hideSettingsDropdown() {
+        this.elements.settingsDropdown.classList.remove('show');
+    }
+
+    // Import Modal Methods
+    showImportModal() {
+        this.hideAddModal();
+        this.hideSettingsDropdown();
+        this.elements.importModal.classList.add('show');
+        this.resetImportForm();
+    }
+
+    hideImportModal() {
+        this.elements.importModal.classList.remove('show');
+        this.resetImportForm();
+    }
+
+    resetImportForm() {
+        this.elements.fileInput.value = '';
+        this.elements.importOptions.style.display = 'none';
+        this.elements.fileDropZone.classList.remove('dragover');
+        const mergeOption = document.querySelector('input[name="importMode"][value="merge"]');
+        if (mergeOption) mergeOption.checked = true;
+        this.importData = null;
+    }
+
+    // File Handling Methods
+    handleFileSelect(e) {
+        const file = e.target.files[0];
+        if (file) {
+            this.processFile(file);
+        }
+    }
+
+    handleDragOver(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.elements.fileDropZone.classList.add('dragover');
+    }
+
+    handleDragLeave(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!this.elements.fileDropZone.contains(e.relatedTarget)) {
+            this.elements.fileDropZone.classList.remove('dragover');
+        }
+    }
+
+    handleFileDrop(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.elements.fileDropZone.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            this.processFile(files[0]);
+        }
+    }
+
+    async processFile(file) {
+        if (!file.type.includes('json') && !file.name.endsWith('.json')) {
+            showToast('JSON 파일만 업로드할 수 있습니다.', 'error');
+            return;
+        }
+
+        try {
+            const text = await this.readFileAsText(file);
+            const data = JSON.parse(text);
+            
+            if (this.validateImportData(data)) {
+                this.importData = data;
+                this.elements.importOptions.style.display = 'block';
+                showToast('파일이 성공적으로 로드되었습니다.');
+            } else {
+                showToast('올바르지 않은 데이터 형식입니다.', 'error');
+            }
+        } catch (error) {
+            console.error('파일 처리 실패:', error);
+            showToast('파일을 읽을 수 없습니다.', 'error');
+        }
+    }
+
+    readFileAsText(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = () => reject(new Error('File reading failed'));
+            reader.readAsText(file);
+        });
+    }
+
+    validateImportData(data) {
+        // Basic validation for the expected data structure
+        return data && 
+               typeof data === 'object' && 
+               (data.prompts || data.folders || Array.isArray(data));
+    }
+
+    async handleImport() {
+        if (!this.importData) {
+            showToast('가져올 데이터가 없습니다.', 'error');
+            return;
+        }
+
+        const importMode = document.querySelector('input[name="importMode"]:checked').value;
+        
+        try {
+            if (importMode === 'replace') {
+                // Clear all existing data
+                await promptStorage.clearAllData();
+            }
+
+            // Import the data
+            await this.importDataToStorage(this.importData);
+            
+            showToast('데이터를 성공적으로 가져왔습니다.');
+            this.hideImportModal();
+            await this.loadCurrentView();
+        } catch (error) {
+            console.error('데이터 가져오기 실패:', error);
+            showToast('데이터 가져오기에 실패했습니다.', 'error');
+        }
+    }
+
+    async importDataToStorage(data) {
+        // Handle different data formats
+        if (Array.isArray(data)) {
+            // Legacy format: array of prompts
+            for (const prompt of data) {
+                if (prompt.title && prompt.content) {
+                    await promptStorage.savePrompt({
+                        title: prompt.title,
+                        content: prompt.content,
+                        folderId: prompt.folderId || 'home',
+                        isFavorite: prompt.isFavorite || false
+                    });
+                }
+            }
+        } else if (data.prompts || data.folders) {
+            // New format: structured data
+            if (data.folders) {
+                for (const folder of data.folders) {
+                    await promptStorage.saveFolder({
+                        name: folder.name,
+                        icon: folder.icon || '📁',
+                        parentId: folder.parentId
+                    });
+                }
+            }
+            
+            if (data.prompts) {
+                for (const prompt of data.prompts) {
+                    if (prompt.title && prompt.content) {
+                        await promptStorage.savePrompt({
+                            title: prompt.title,
+                            content: prompt.content,
+                            folderId: prompt.folderId || 'home',
+                            isFavorite: prompt.isFavorite || false
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // Export Methods
+    async handleExport() {
+        this.hideSettingsDropdown();
+        
+        try {
+            const allPrompts = await promptStorage.getAllPrompts();
+            const allFolders = await promptStorage.getAllFolders();
+            
+            const exportData = {
+                prompts: allPrompts,
+                folders: allFolders,
+                exportDate: new Date().toISOString(),
+                version: '1.0'
+            };
+            
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            
+            const now = new Date();
+            const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD format
+            const filename = `pocket-prompt-backup-${dateStr}.json`;
+            
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showToast('데이터를 성공적으로 내보냈습니다.');
+        } catch (error) {
+            console.error('데이터 내보내기 실패:', error);
+            showToast('데이터 내보내기에 실패했습니다.', 'error');
         }
     }
 }

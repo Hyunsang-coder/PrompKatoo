@@ -11,6 +11,9 @@
         <header class="header">
             <h1 class="title">Prompt Manager</h1>
             <div class="header-actions">
+                <button class="settings-btn" id="settingsBtn" aria-label="설정">
+                    ⚙️
+                </button>
                 <button class="add-btn" id="addBtn" aria-label="추가">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -62,6 +65,14 @@
         </div>
     </div>
 
+    <!-- 설정 드롭다운 -->
+    <div class="dropdown-menu" id="settingsDropdown">
+        <div class="dropdown-item" id="exportBtn">
+            <div class="dropdown-icon">📤</div>
+            <span>Export Data</span>
+        </div>
+    </div>
+
     <!-- 추가 옵션 모달 -->
     <div class="modal" id="addModal">
         <div class="modal-content add-modal-content">
@@ -87,6 +98,14 @@
                     <div class="add-option-text">
                         <h3>새 폴더</h3>
                         <p>새로운 폴더를 생성합니다</p>
+                    </div>
+                </button>
+                <div class="option-divider"></div>
+                <button class="add-option-btn" id="importBtn">
+                    <div class="add-option-icon">📥</div>
+                    <div class="add-option-text">
+                        <h3>Import</h3>
+                        <p>JSON 파일에서 데이터를 가져옵니다</p>
                     </div>
                 </button>
             </div>
@@ -196,6 +215,54 @@
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" id="cancelVariableBtn">취소</button>
                 <button type="button" class="btn btn-primary" id="copyVariableBtn">복사하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import 모달 -->
+    <div class="modal" id="importModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>데이터 가져오기</h2>
+                <button class="close-btn" id="closeImportModalBtn" aria-label="모달 닫기">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="import-content">
+                <div class="file-drop-zone" id="fileDropZone">
+                    <div class="drop-zone-content">
+                        <div class="drop-zone-icon">📁</div>
+                        <p>JSON 파일을 드래그하거나 클릭하여 선택하세요</p>
+                        <input type="file" id="fileInput" accept=".json" hidden>
+                        <button type="button" class="btn btn-secondary" id="selectFileBtn">파일 선택</button>
+                    </div>
+                </div>
+                <div class="import-options" id="importOptions" style="display: none;">
+                    <h3>가져오기 옵션</h3>
+                    <div class="option-group">
+                        <label class="radio-option">
+                            <input type="radio" name="importMode" value="merge" checked>
+                            <span class="radio-label">
+                                <strong>병합</strong>
+                                <small>기존 데이터와 합치기 (중복 시 새 데이터로 교체)</small>
+                            </span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="importMode" value="replace">
+                            <span class="radio-label">
+                                <strong>교체</strong>
+                                <small>기존 데이터를 모두 삭제하고 새 데이터로 교체</small>
+                            </span>
+                        </label>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="cancelImportBtn">취소</button>
+                        <button type="button" class="btn btn-primary" id="confirmImportBtn">가져오기</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
