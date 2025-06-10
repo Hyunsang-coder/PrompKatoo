@@ -992,7 +992,7 @@ html, body {
 /* 드롭다운 메뉴 */
 .dropdown-menu {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 8px);
     right: 0;
     background: white;
     border: 1px solid #e2e8f0;
@@ -1005,7 +1005,6 @@ html, body {
     transform: scale(0.95) translateY(-10px);
     transition: all 0.15s ease-out;
     overflow: hidden;
-    margin-top: 8px;
 }
 
 .dropdown-menu.show {

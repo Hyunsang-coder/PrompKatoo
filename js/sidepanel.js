@@ -1258,6 +1258,10 @@ class FolderPromptManager {
     // Settings Dropdown Methods
     toggleSettingsDropdown(e) {
         e.stopPropagation();
+        if (!this.elements.settingsDropdown) {
+            console.error('Settings dropdown element not found');
+            return;
+        }
         const isVisible = this.elements.settingsDropdown.classList.contains('show');
         if (isVisible) {
             this.hideSettingsDropdown();
