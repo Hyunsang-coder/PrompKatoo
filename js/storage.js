@@ -703,8 +703,20 @@ class PromptStorage {
         });
     }
 
+    // Duplicate detection helper
+    isDuplicatePrompt(newPrompt, existingPrompts) {
+        const newTitle = newPrompt.title.toLowerCase().trim();
+        const newContent = newPrompt.content.toLowerCase().trim();
+        
+        return existingPrompts.some(existing => {
+            const existingTitle = existing.title.toLowerCase().trim();
+            const existingContent = existing.content.toLowerCase().trim();
+            return existingTitle === newTitle && existingContent === newContent;
+        });
+    }
+
     // Enhanced batch operations with better error handling
-    async batchSavePromptsWithValidation(promptsData) {
+    async batchSavePromptsWithValidation(promptsData, options = {}) {
         try {
             console.log('🔄 Starting validated batch save for', promptsData.length, 'prompts');
 
@@ -727,11 +739,15 @@ class PromptStorage {
                 folders: currentFolders.length
             });
 
-            // Validate folder references
+            // Validate folder references and handle duplicates
             const folderIds = currentFolders.map(f => f.id);
-            const validatedPrompts = promptsData.map(promptData => {
+            const validatedPrompts = [];
+            const skippedDuplicates = [];
+            const isMergeMode = options.mergeMode || false;
+            
+            for (const promptData of promptsData) {
                 const newPrompt = {
-                    id: generateUUID(),
+                    id: promptData.id || generateUUID(), // Use existing ID if provided
                     title: this.validateTitle(promptData.title),
                     content: this.validateContent(promptData.content),
                     folderId: folderIds.includes(promptData.folderId) ? promptData.folderId : 'home',
@@ -742,10 +758,17 @@ class PromptStorage {
                     updatedAt: Date.now(),
                     order: promptData.order || Date.now()
                 };
+                
+                // Check for duplicates in merge mode
+                if (isMergeMode && this.isDuplicatePrompt(newPrompt, currentPrompts)) {
+                    console.log('⚠️ Skipping duplicate prompt:', newPrompt.title);
+                    skippedDuplicates.push(newPrompt.title);
+                    continue;
+                }
 
                 console.log('✨ Created validated prompt:', newPrompt.title, 'with ID:', newPrompt.id);
-                return newPrompt;
-            });
+                validatedPrompts.push(newPrompt);
+            }
 
             // Combine and save
             const allPrompts = [...currentPrompts, ...validatedPrompts];
@@ -758,7 +781,10 @@ class PromptStorage {
                         reject(new Error(`Storage save failed: ${chrome.runtime.lastError.message}`));
                     } else {
                         console.log('✅ Validated batch save completed successfully');
-                        resolve(validatedPrompts);
+                        resolve({
+                            importedPrompts: validatedPrompts,
+                            skippedDuplicates: skippedDuplicates
+                        });
                     }
                 });
             });
@@ -768,7 +794,7 @@ class PromptStorage {
         }
     }
 
-    async batchSaveFoldersWithValidation(foldersData) {
+    async batchSaveFoldersWithValidation(foldersData, options = {}) {
         try {
             console.log('🔄 Starting validated batch save for', foldersData.length, 'folders');
 
@@ -787,7 +813,7 @@ class PromptStorage {
             // Validate and process folder data
             const validatedFolders = foldersData.map(folderData => {
                 const newFolder = {
-                    id: generateUUID(),
+                    id: folderData.id || generateUUID(), // Use existing ID if provided
                     name: this.validateFolderName(folderData.name),
                     icon: folderData.icon || '📁',
                     parentId: folderData.parentId || null,

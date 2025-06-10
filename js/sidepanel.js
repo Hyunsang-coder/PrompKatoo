@@ -1766,7 +1766,7 @@ class FolderPromptManager {
             }
 
             console.log('💾 Importing data to storage...');
-            await this.importDataToStorage(this.importData);
+            const importResult = await this.importDataToStorage(this.importData, importMode);
             console.log('✅ Data imported to storage successfully');
             
             // Check storage state after import
@@ -1800,7 +1800,12 @@ class FolderPromptManager {
             await this.forceCompleteRefresh();
             console.log('✅ Complete UI refresh finished');
             
-            showToast('Data imported successfully.');
+            // Show appropriate success message
+            let message = 'Data imported successfully.';
+            if (importResult && importResult.totalSkippedDuplicates && importResult.totalSkippedDuplicates.length > 0) {
+                message = `Data imported successfully. ${importResult.totalSkippedDuplicates.length} duplicate(s) skipped.`;
+            }
+            showToast(message);
             this.hideImportModal();
             
             console.log('🎉 Import process completed successfully');
@@ -1814,7 +1819,7 @@ class FolderPromptManager {
         }
     }
 
-    async importDataToStorage(data) {
+    async importDataToStorage(data, importMode = 'merge') {
         console.log('📂 Starting enhanced import process...');
         console.log('⏰ Import timestamp:', new Date().toISOString());
         
@@ -1837,13 +1842,16 @@ class FolderPromptManager {
             const folderIdMapping = new Map();
             let importedFolders = [];
             let importedPrompts = [];
+            let totalSkippedDuplicates = [];
             
             // Handle different data formats
             if (Array.isArray(data)) {
                 console.log('📜 Legacy format detected: array of prompts');
                 console.log('📊 Processing', data.length, 'legacy prompts');
                 
-                importedPrompts = await this.processLegacyPrompts(data);
+                const legacyResult = await this.processLegacyPrompts(data, importMode);
+                importedPrompts = legacyResult.importedPrompts;
+                totalSkippedDuplicates = [...totalSkippedDuplicates, ...legacyResult.skippedDuplicates];
                 
             } else if (data.prompts || data.folders) {
                 console.log('🏗️ New structured format detected');
@@ -1858,7 +1866,9 @@ class FolderPromptManager {
                 // Import prompts with updated folder IDs
                 if (data.prompts) {
                     console.log('📝 Processing', data.prompts.length, 'prompts');
-                    importedPrompts = await this.processPromptsWithMapping(data.prompts, folderIdMapping);
+                    const promptResult = await this.processPromptsWithMapping(data.prompts, folderIdMapping, importMode);
+                    importedPrompts = promptResult.importedPrompts;
+                    totalSkippedDuplicates = [...totalSkippedDuplicates, ...promptResult.skippedDuplicates];
                 }
             } else {
                 console.error('❌ Unknown data format:', data);
@@ -1892,13 +1902,15 @@ class FolderPromptManager {
             
             console.log('🎯 Enhanced import process completed successfully');
             
+            return { totalSkippedDuplicates };
+            
         } catch (error) {
             console.error('❌ Enhanced import process failed:', error);
             throw error;
         }
     }
 
-    async processLegacyPrompts(legacyData) {
+    async processLegacyPrompts(legacyData, importMode = 'merge') {
         const validPrompts = [];
         
         for (const prompt of legacyData) {
@@ -1925,12 +1937,17 @@ class FolderPromptManager {
             }
         }
         
+        let skippedDuplicates = [];
         if (validPrompts.length > 0) {
             console.log('💾 Batch saving', validPrompts.length, 'legacy prompts with validation...');
-            await promptStorage.batchSavePromptsWithValidation(validPrompts);
+            const result = await promptStorage.batchSavePromptsWithValidation(validPrompts, { mergeMode: importMode === 'merge' });
+            if (result.skippedDuplicates && result.skippedDuplicates.length > 0) {
+                console.log('⚠️ Skipped', result.skippedDuplicates.length, 'duplicate prompts:', result.skippedDuplicates);
+                skippedDuplicates = result.skippedDuplicates;
+            }
         }
         
-        return validPrompts;
+        return { importedPrompts: validPrompts, skippedDuplicates };
     }
 
     async processFoldersWithMapping(foldersData, folderIdMapping) {
@@ -1958,8 +1975,9 @@ class FolderPromptManager {
         
         // Flat structure: no parent relationships to maintain
         const finalFolders = validFolders.map(folder => {
-            // Remove temporary fields and parentId for flat structure
-            const { originalId, newId, parentId, ...cleanFolder } = folder;
+            // Assign the new ID and remove temporary fields for flat structure
+            const { originalId, parentId, ...cleanFolder } = folder;
+            cleanFolder.id = folder.newId; // Assign the mapped ID
             return cleanFolder;
         });
         
@@ -1971,7 +1989,7 @@ class FolderPromptManager {
         return { folders: finalFolders, mapping: folderIdMapping };
     }
 
-    async processPromptsWithMapping(promptsData, folderIdMapping) {
+    async processPromptsWithMapping(promptsData, folderIdMapping, importMode = 'merge') {
         console.log('🗺️ Processing prompts with folder ID mapping...');
         const validPrompts = [];
         
@@ -2011,18 +2029,24 @@ class FolderPromptManager {
             }
         }
         
+        let skippedDuplicates = [];
         if (validPrompts.length > 0) {
             console.log('💾 Batch saving', validPrompts.length, 'prompts with validation...');
-            await promptStorage.batchSavePromptsWithValidation(validPrompts);
+            const result = await promptStorage.batchSavePromptsWithValidation(validPrompts, { mergeMode: importMode === 'merge' });
+            if (result.skippedDuplicates && result.skippedDuplicates.length > 0) {
+                console.log('⚠️ Skipped', result.skippedDuplicates.length, 'duplicate prompts:', result.skippedDuplicates);
+                skippedDuplicates = result.skippedDuplicates;
+            }
         }
         
-        return validPrompts;
+        return { importedPrompts: validPrompts, skippedDuplicates };
     }
 
     // Legacy batch save methods (kept for compatibility, now delegate to validated versions)
     async batchSavePrompts(promptsData) {
         console.log('📢 Using legacy batchSavePrompts, delegating to validated version...');
-        return await promptStorage.batchSavePromptsWithValidation(promptsData);
+        const result = await promptStorage.batchSavePromptsWithValidation(promptsData);
+        return result.importedPrompts || result; // Handle both old and new return formats
     }
 
     async batchSaveFolders(foldersData) {
