@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Prompt Manager",
+  "name": "Promcatoo: Free Prompt Manager",
   "version": "1.0.0",
-  "description": "프롬프트를 저장하고 관리할 수 있는 Chrome Extension",
+  "description": "Completely free prompt manager for Chrome.",
   "permissions": [
     "storage",
     "sidePanel"
