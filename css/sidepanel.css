@@ -179,6 +179,19 @@ body {
     font-size: 12px;
     cursor: pointer;
     transition: all 0.2s;
+    min-width: 44px;
+    text-align: center;
+}
+
+.filter-btn[data-filter="favorites"] {
+    font-size: 14px;
+    line-height: 1;
+}
+
+.filter-btn.active[data-filter="favorites"] {
+    background-color: #fbbf24;
+    border-color: #f59e0b;
+    color: white;
 }
 
 .filter-btn:hover {
@@ -196,7 +209,7 @@ body {
     padding: 8px 16px 6px;
     border-bottom: 1px solid #f1f5f9;
     flex-shrink: 0;
-    max-height: 40vh;
+    max-height: 25vh;
     overflow-y: auto;
 }
 
@@ -997,6 +1010,8 @@ body {
     padding: 2px 6px;
     border-radius: 4px;
     margin-left: 8px;
+    font-weight: 500;
+    white-space: nowrap;
 }
 
 /* 드래그 앤 드롭 피드백 */
@@ -1209,17 +1224,17 @@ body {
         grid-template-columns: 1fr;
         gap: 3px;
     }
-    
+
     .folder-card {
         padding: 4px 6px;
         gap: 5px;
         min-height: 36px;
     }
-    
+
     .folder-name {
         font-size: 10px;
     }
-    
+
     .folder-count {
         font-size: 7px;
     }
@@ -1229,57 +1244,57 @@ body {
     .breadcrumb-text {
         max-width: 120px;
     }
-    
+
     .header-actions {
         gap: 4px;
     }
-    
+
     .settings-btn,
     .add-btn {
         width: 24px;
         height: 24px;
         font-size: 12px;
     }
-    
+
     .breadcrumb-container {
         gap: 4px;
     }
-    
+
     .breadcrumb-item {
         padding: 4px 6px;
     }
-    
+
     .breadcrumb-icon {
         font-size: 14px;
     }
-    
+
     .breadcrumb-text {
         font-size: 13px;
     }
-    
+
     .folder-grid {
         grid-template-columns: 1fr;
         gap: 4px;
     }
-    
+
     .folder-card {
         padding: 5px 8px;
         gap: 6px;
         min-height: 40px;
     }
-    
+
     .folder-icon {
         font-size: 14px;
     }
-    
+
     .folder-name {
         font-size: 11px;
     }
-    
+
     .folder-count {
         font-size: 8px;
     }
-    
+
     .prompt-card {
         padding: 6px 8px;
     }
@@ -1289,19 +1304,19 @@ body {
     .breadcrumb-text {
         max-width: 80px;
     }
-    
+
     .header {
         padding: 10px 12px;
     }
-    
+
     .breadcrumb-item {
         padding: 3px 5px;
     }
-    
+
     .folder-card {
         padding: 5px 8px;
     }
-    
+
     .prompt-card {
         padding: 5px 7px;
     }

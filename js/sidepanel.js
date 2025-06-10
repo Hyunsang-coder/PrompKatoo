@@ -382,27 +382,67 @@ class FolderPromptManager {
         
         try {
             let prompts;
+            const isHomeFolder = this.currentFolderId === 'home';
             
-            if (this.currentFilter === 'favorites') {
-                console.log('⭐ Loading favorite prompts...');
-                const allPrompts = await promptStorage.getFavoritePrompts();
-                prompts = allPrompts.filter(p => p.folderId === this.currentFolderId);
-                console.log('⭐ Favorite prompts found:', prompts.length);
-            } else if (this.currentSearchTerm) {
+            // New filtering logic based on context
+            if (this.currentSearchTerm) {
                 console.log('🔍 Loading search results for:', this.currentSearchTerm);
-                if (this.currentSearchTerm.length > 0) {
+                if (isHomeFolder) {
+                    // Global search across all folders
                     prompts = await promptStorage.searchPromptsWithFolderInfo(this.currentSearchTerm);
                 } else {
-                    prompts = await promptStorage.getPromptsByFolder(this.currentFolderId);
+                    // Search within current folder only
+                    const folderPrompts = await promptStorage.getPromptsByFolder(this.currentFolderId);
+                    prompts = folderPrompts.filter(prompt => 
+                        prompt.title.toLowerCase().includes(this.currentSearchTerm.toLowerCase()) ||
+                        prompt.content.toLowerCase().includes(this.currentSearchTerm.toLowerCase())
+                    );
                 }
                 console.log('🔍 Search prompts found:', prompts.length);
+            } else if (this.currentFilter === 'favorites') {
+                console.log('⭐ Loading favorite prompts...');
+                if (isHomeFolder) {
+                    // Global favorites from all folders
+                    prompts = await promptStorage.getFavoritePrompts();
+                    // Add folder path info for global view
+                    const folders = await promptStorage.getAllFolders();
+                    prompts = prompts.map(prompt => {
+                        const folder = folders.find(f => f.id === prompt.folderId);
+                        return {
+                            ...prompt,
+                            folderPath: promptStorage.getFolderPath(folder, folders)
+                        };
+                    });
+                } else {
+                    // Favorites within current folder only
+                    const folderPrompts = await promptStorage.getPromptsByFolder(this.currentFolderId);
+                    prompts = folderPrompts.filter(p => p.isFavorite);
+                }
+                console.log('⭐ Favorite prompts found:', prompts.length);
             } else {
-                console.log('📂 Loading prompts for folder:', this.currentFolderId);
-                prompts = await promptStorage.getPromptsByFolder(this.currentFolderId);
-                console.log('📂 Folder prompts found:', prompts.length);
+                // All prompts
+                console.log('📂 Loading all prompts...');
+                if (isHomeFolder) {
+                    // Global view - all prompts from all folders
+                    prompts = await promptStorage.getAllPrompts();
+                    // Add folder path info for global view
+                    const folders = await promptStorage.getAllFolders();
+                    prompts = prompts.map(prompt => {
+                        const folder = folders.find(f => f.id === prompt.folderId);
+                        return {
+                            ...prompt,
+                            folderPath: promptStorage.getFolderPath(folder, folders)
+                        };
+                    });
+                } else {
+                    // Folder-specific view - prompts within current folder only
+                    prompts = await promptStorage.getPromptsByFolder(this.currentFolderId);
+                }
+                console.log('📂 Prompts found:', prompts.length);
                 console.log('📋 Prompt titles:', prompts.map(p => p.title).slice(0, 3).join(', ') + (prompts.length > 3 ? '...' : ''));
             }
 
+            // Apply search filter to favorites if both are active
             if (this.currentFilter === 'favorites' && this.currentSearchTerm) {
                 console.log('⭐🔍 Applying search filter to favorites...');
                 prompts = prompts.filter(prompt => 
@@ -468,7 +508,9 @@ class FolderPromptManager {
                 ).join('')}
             </div>` : '';
 
-        const folderPathHtml = prompt.folderPath && this.currentSearchTerm ? 
+        // Show folder path in global home view or during search
+        const showFolderPath = prompt.folderPath && (this.currentFolderId === 'home' || this.currentSearchTerm);
+        const folderPathHtml = showFolderPath ? 
             `<span class="folder-path">${sanitizeHtml(prompt.folderPath)}</span>` : '';
 
         return `
@@ -531,11 +573,13 @@ class FolderPromptManager {
 
     // Custom sorting for current folder view
     sortPromptsForDisplay(prompts) {
-        if (this.currentSearchTerm || this.currentFilter === 'favorites') {
+        const isHomeFolder = this.currentFolderId === 'home';
+        
+        if (this.currentSearchTerm || this.currentFilter === 'favorites' || isHomeFolder) {
             return sortPrompts(prompts, 'recent');
         }
         
-        // For folder view, sort by custom order first, then by creation date
+        // For specific folder view, sort by custom order first, then by creation date
         return prompts.sort((a, b) => {
             if (a.isFavorite !== b.isFavorite) {
                 return b.isFavorite - a.isFavorite;
