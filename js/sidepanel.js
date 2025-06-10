@@ -324,8 +324,10 @@ class FolderPromptManager {
                     </button>
                 </div>
                 <span class="folder-icon">${folder.icon}</span>
-                <div class="folder-name">${sanitizeHtml(folder.name)}</div>
-                <div class="folder-count">${folder.promptCount} ${promptText}</div>
+                <div class="folder-info">
+                    <div class="folder-name">${sanitizeHtml(folder.name)}</div>
+                    <div class="folder-count">${folder.promptCount} ${promptText}</div>
+                </div>
             </div>
         `;
     }
