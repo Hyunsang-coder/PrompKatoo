@@ -244,22 +244,11 @@ class FolderPromptManager {
         const breadcrumbItems = [];
         let currentFolder = folders.find(f => f.id === this.currentFolderId);
         
-        if (this.currentFolderId === 'home' || !currentFolder) {
-            breadcrumbItems.push({ id: 'home', name: 'Home', icon: '🏠' });
-        } else {
-            // Build path from current folder to home
-            const path = [];
-            while (currentFolder && currentFolder.id !== 'home') {
-                path.unshift(currentFolder);
-                // Handle null parentId (which means parent is home)
-                if (currentFolder.parentId === null) {
-                    break;
-                }
-                currentFolder = folders.find(f => f.id === currentFolder.parentId);
-            }
-            
-            breadcrumbItems.push({ id: 'home', name: 'Home', icon: '🏠' });
-            breadcrumbItems.push(...path);
+        // Flat structure: always show Home > Current Folder
+        breadcrumbItems.push({ id: 'home', name: 'Home', icon: '🏠' });
+        
+        if (currentFolder && currentFolder.id !== 'home') {
+            breadcrumbItems.push(currentFolder);
         }
 
         const breadcrumbHtml = breadcrumbItems.map((item, index) => {
@@ -290,9 +279,16 @@ class FolderPromptManager {
 
     async loadFolders() {
         try {
-            const subfolders = await promptStorage.getFoldersByParent(this.currentFolderId);
+            // Only show folders when in home view in flat structure
+            if (this.currentFolderId !== 'home') {
+                this.elements.foldersContainer.innerHTML = '';
+                this.elements.foldersContainer.style.display = 'none';
+                return;
+            }
             
-            if (subfolders.length === 0) {
+            const allFolders = await promptStorage.getFoldersByParent('home');
+            
+            if (allFolders.length === 0) {
                 this.elements.foldersContainer.innerHTML = '';
                 this.elements.foldersContainer.style.display = 'none';
                 return;
@@ -302,7 +298,7 @@ class FolderPromptManager {
             
             // Get prompt counts for each folder
             const foldersWithCounts = await Promise.all(
-                subfolders.map(async folder => {
+                allFolders.map(async folder => {
                     const prompts = await promptStorage.getPromptsByFolder(folder.id);
                     return { ...folder, promptCount: prompts.length };
                 })
@@ -901,8 +897,7 @@ class FolderPromptManager {
         try {
             const folderData = {
                 name,
-                icon: this.selectedIcon,
-                parentId: this.currentFolderId === 'home' ? null : this.currentFolderId
+                icon: this.selectedIcon
             };
 
             if (this.editingFolderId) {
@@ -1741,7 +1736,6 @@ class FolderPromptManager {
                 const folderData = {
                     name: folder.name,
                     icon: folder.icon || '📁',
-                    parentId: folder.parentId === 'home' ? null : folder.parentId, // Will be updated in second pass
                     createdAt: folder.createdAt || Date.now()
                 };
                 
@@ -1751,21 +1745,10 @@ class FolderPromptManager {
             }
         }
         
-        // Second pass: update parent IDs with mapped values
+        // Flat structure: no parent relationships to maintain
         const finalFolders = validFolders.map(folder => {
-            if (folder.parentId && folder.parentId !== null && folder.parentId !== 'home') {
-                const mappedParentId = folderIdMapping.get(folder.parentId);
-                if (mappedParentId) {
-                    folder.parentId = mappedParentId;
-                    console.log('🔗 Updated parent ID for', folder.name, 'to', mappedParentId);
-                } else {
-                    console.warn('⚠️ Parent folder not found in mapping, setting to home:', folder.parentId);
-                    folder.parentId = null;
-                }
-            }
-            
-            // Remove temporary fields
-            const { originalId, newId, ...cleanFolder } = folder;
+            // Remove temporary fields and parentId for flat structure
+            const { originalId, newId, parentId, ...cleanFolder } = folder;
             return cleanFolder;
         });
         
@@ -1848,7 +1831,8 @@ class FolderPromptManager {
                 prompts: allPrompts,
                 folders: allFolders,
                 exportDate: new Date().toISOString(),
-                version: '1.0'
+                version: '2.0',
+                structure: 'flat'
             };
             
             const dataStr = JSON.stringify(exportData, null, 2);

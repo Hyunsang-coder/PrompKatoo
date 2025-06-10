@@ -2,7 +2,7 @@ class PromptStorage {
     constructor() {
         this.storageKey = 'prompt_manager_data';
         this.foldersKey = 'prompt_manager_folders';
-        this.migrationKey = 'prompt_manager_migration_v2';
+        this.migrationKey = 'prompt_manager_migration_v3_flat';
         this.initializeStorage();
     }
 
@@ -22,24 +22,33 @@ class PromptStorage {
         try {
             const existingPrompts = await this.getAllPrompts();
             const existingFolders = await this.getAllFolders();
-            
+
             if (existingFolders.length === 0) {
                 const homeFolder = {
                     id: 'home',
                     name: 'Home',
                     icon: '🏠',
-                    parentId: null,
                     createdAt: Date.now(),
                     color: null
                 };
                 await chrome.storage.local.set({ [this.foldersKey]: [homeFolder] });
             }
-            
+
+            // Flat structure migration: remove parentId from existing folders
+            if (existingFolders.length > 0) {
+                const flatFolders = existingFolders.map(folder => {
+                    const { parentId, ...flatFolder } = folder;
+                    return flatFolder;
+                });
+                await chrome.storage.local.set({ [this.foldersKey]: flatFolders });
+            }
+
             if (existingPrompts.length > 0) {
                 const migratedPrompts = existingPrompts.map((prompt, index) => ({
                     ...prompt,
                     folderId: prompt.folderId || 'home',
-                    order: prompt.order !== undefined ? prompt.order : index
+                    order: prompt.order !== undefined ? prompt.order : index,
+                    tags: prompt.tags || []
                 }));
                 await chrome.storage.local.set({ [this.storageKey]: migratedPrompts });
             }
@@ -91,9 +100,8 @@ class PromptStorage {
     async getFoldersByParent(parentId) {
         try {
             const folders = await this.getAllFolders();
-            // Handle 'home' parentId by looking for null parentId
-            const targetParentId = parentId === 'home' ? null : parentId;
-            return folders.filter(folder => folder.parentId === targetParentId);
+            // Flat structure: return all folders except home
+            return folders.filter(folder => folder.id !== 'home');
         } catch (error) {
             console.error('Failed to query subfolders:', error);
             return [];
@@ -103,7 +111,7 @@ class PromptStorage {
     async savePrompt(promptData) {
         try {
             const prompts = await this.getAllPrompts();
-            
+
             const newPrompt = {
                 id: promptData.id || generateUUID(),
                 title: this.validateTitle(promptData.title),
@@ -114,12 +122,13 @@ class PromptStorage {
                 usageCount: promptData.usageCount || 0,
                 variables: extractVariables(promptData.content),
                 updatedAt: Date.now(),
-                order: promptData.order || Date.now() // Use timestamp as default order
+                order: promptData.order || Date.now(),
+                tags: promptData.tags || []
             };
 
             prompts.push(newPrompt);
             await chrome.storage.local.set({ [this.storageKey]: prompts });
-            
+
             return newPrompt;
         } catch (error) {
             console.error('Failed to save prompt:', error);
@@ -130,29 +139,18 @@ class PromptStorage {
     async saveFolder(folderData) {
         try {
             const folders = await this.getAllFolders();
-            
-            if (folderData.parentId && folderData.parentId !== 'home') {
-                const parent = await this.getFolder(folderData.parentId);
-                if (!parent) {
-                    throw new Error('Parent folder not found.');
-                }
-                if (parent.parentId !== 'home' && parent.parentId !== null) {
-                    throw new Error('Folder structures deeper than 3 levels are not supported.');
-                }
-            }
-            
+
             const newFolder = {
                 id: folderData.id || generateUUID(),
                 name: this.validateFolderName(folderData.name),
                 icon: folderData.icon || '📁',
-                parentId: folderData.parentId || null,
                 createdAt: folderData.createdAt || Date.now(),
                 color: folderData.color || null
             };
 
             folders.push(newFolder);
             await chrome.storage.local.set({ [this.foldersKey]: folders });
-            
+
             return newFolder;
         } catch (error) {
             console.error('Failed to save folder:', error);
@@ -164,7 +162,7 @@ class PromptStorage {
         try {
             const prompts = await this.getAllPrompts();
             const index = prompts.findIndex(p => p.id === id);
-            
+
             if (index === -1) {
                 throw new Error('Prompt not found.');
             }
@@ -172,7 +170,7 @@ class PromptStorage {
             if (updates.title !== undefined) {
                 updates.title = this.validateTitle(updates.title);
             }
-            
+
             if (updates.content !== undefined) {
                 updates.content = this.validateContent(updates.content);
                 updates.variables = extractVariables(updates.content);
@@ -196,11 +194,11 @@ class PromptStorage {
         try {
             const folders = await this.getAllFolders();
             const index = folders.findIndex(f => f.id === id);
-            
+
             if (index === -1) {
                 throw new Error('Folder not found.');
             }
-            
+
             if (updates.name !== undefined) {
                 updates.name = this.validateFolderName(updates.name);
             }
@@ -222,11 +220,11 @@ class PromptStorage {
         try {
             const prompts = await this.getAllPrompts();
             const filteredPrompts = prompts.filter(p => p.id !== id);
-            
+
             if (prompts.length === filteredPrompts.length) {
                 throw new Error('Prompt not found.');
             }
-            
+
             await chrome.storage.local.set({ [this.storageKey]: filteredPrompts });
             return true;
         } catch (error) {
@@ -240,34 +238,25 @@ class PromptStorage {
             if (id === 'home') {
                 throw new Error('Home folder cannot be deleted.');
             }
-            
+
             const folders = await this.getAllFolders();
             const folderToDelete = folders.find(f => f.id === id);
-            
+
             if (!folderToDelete) {
                 throw new Error('Folder not found.');
             }
-            
-            const subfolders = await this.getFoldersByParent(id);
+
             const prompts = await this.getPromptsByFolder(id);
-            
-            const parentId = folderToDelete.parentId || 'home';
-            
-            if (subfolders.length > 0) {
-                for (const subfolder of subfolders) {
-                    await this.updateFolder(subfolder.id, { parentId });
-                }
-            }
-            
+
             if (prompts.length > 0) {
                 for (const prompt of prompts) {
-                    await this.updatePrompt(prompt.id, { folderId: parentId });
+                    await this.updatePrompt(prompt.id, { folderId: 'home' });
                 }
             }
-            
+
             const filteredFolders = folders.filter(f => f.id !== id);
             await chrome.storage.local.set({ [this.foldersKey]: filteredFolders });
-            
+
             return true;
         } catch (error) {
             console.error('Failed to delete folder:', error);
@@ -281,7 +270,7 @@ class PromptStorage {
             if (!targetFolder && targetFolderId !== 'home') {
                 throw new Error('Target folder not found.');
             }
-            
+
             return await this.updatePrompt(promptId, { folderId: targetFolderId });
         } catch (error) {
             console.error('Failed to move prompt:', error);
@@ -293,13 +282,13 @@ class PromptStorage {
         try {
             const prompts = await this.getAllPrompts();
             const folderPrompts = prompts.filter(p => p.folderId === folderId);
-            
+
             // Validate that all provided IDs exist in the folder
             const folderPromptIds = folderPrompts.map(p => p.id);
             if (!promptIds.every(id => folderPromptIds.includes(id))) {
                 throw new Error('Some prompts do not exist in the specified folder.');
             }
-            
+
             // Update order values based on new sequence
             promptIds.forEach((promptId, index) => {
                 const prompt = prompts.find(p => p.id === promptId);
@@ -308,7 +297,7 @@ class PromptStorage {
                     prompt.updatedAt = Date.now();
                 }
             });
-            
+
             await chrome.storage.local.set({ [this.storageKey]: prompts });
             return true;
         } catch (error) {
@@ -331,8 +320,8 @@ class PromptStorage {
         try {
             const prompt = await this.getPrompt(id);
             if (prompt) {
-                await this.updatePrompt(id, { 
-                    usageCount: prompt.usageCount + 1 
+                await this.updatePrompt(id, {
+                    usageCount: prompt.usageCount + 1
                 });
             }
         } catch (error) {
@@ -344,8 +333,8 @@ class PromptStorage {
         try {
             const prompt = await this.getPrompt(id);
             if (prompt) {
-                return await this.updatePrompt(id, { 
-                    isFavorite: !prompt.isFavorite 
+                return await this.updatePrompt(id, {
+                    isFavorite: !prompt.isFavorite
                 });
             }
             throw new Error('Prompt not found.');
@@ -363,13 +352,13 @@ class PromptStorage {
             } else {
                 prompts = await this.getAllPrompts();
             }
-            
+
             if (!query.trim()) {
                 return prompts;
             }
 
             const searchTerm = query.toLowerCase();
-            return prompts.filter(prompt => 
+            return prompts.filter(prompt =>
                 prompt.title.toLowerCase().includes(searchTerm) ||
                 prompt.content.toLowerCase().includes(searchTerm)
             );
@@ -383,7 +372,7 @@ class PromptStorage {
         try {
             const prompts = await this.searchPrompts(query);
             const folders = await this.getAllFolders();
-            
+
             return prompts.map(prompt => {
                 const folder = folders.find(f => f.id === prompt.folderId);
                 return {
@@ -401,19 +390,8 @@ class PromptStorage {
         if (!folder || folder.id === 'home') {
             return 'Home';
         }
-        
-        const path = [folder.name];
-        let current = folder;
-        
-        while (current.parentId && current.parentId !== 'home' && current.parentId !== null) {
-            const parent = allFolders.find(f => f.id === current.parentId);
-            if (!parent) break;
-            path.unshift(parent.name);
-            current = parent;
-        }
-        
-        path.unshift('Home');
-        return path.join(' > ');
+
+        return `Home > ${folder.name}`;
     }
 
     async getFavoritePrompts() {
@@ -425,14 +403,16 @@ class PromptStorage {
             return [];
         }
     }
-
     async exportData() {
         try {
             const prompts = await this.getAllPrompts();
+            const folders = await this.getAllFolders();
             const exportData = {
-                version: '1.0.0',
+                prompts,
+                folders,
                 exportDate: new Date().toISOString(),
-                prompts: prompts
+                version: '2.0',
+                structure: 'flat'
             };
             return JSON.stringify(exportData, null, 2);
         } catch (error) {
@@ -444,15 +424,15 @@ class PromptStorage {
     async importData(jsonData) {
         try {
             const data = JSON.parse(jsonData);
-            
+
             if (!data.prompts || !Array.isArray(data.prompts)) {
                 throw new Error('Invalid data format.');
             }
 
             const validPrompts = data.prompts.filter(prompt => {
-                return prompt.title && prompt.content && 
-                       typeof prompt.title === 'string' && 
-                       typeof prompt.content === 'string';
+                return prompt.title && prompt.content &&
+                    typeof prompt.title === 'string' &&
+                    typeof prompt.content === 'string';
             }).map(prompt => ({
                 ...prompt,
                 id: prompt.id || generateUUID(),
@@ -482,16 +462,16 @@ class PromptStorage {
         if (!title || typeof title !== 'string') {
             throw new Error('Title is required.');
         }
-        
+
         const trimmed = title.trim();
         if (trimmed.length === 0) {
             throw new Error('Please enter a title.');
         }
-        
+
         if (trimmed.length > 100) {
             throw new Error('Title must be 100 characters or less.');
         }
-        
+
         return trimmed;
     }
 
@@ -499,17 +479,17 @@ class PromptStorage {
         if (!content || typeof content !== 'string') {
             throw new Error('Content is required.');
         }
-        
+
         const trimmed = content.trim();
         if (trimmed.length === 0) {
             throw new Error('Please enter content.');
         }
-        
+
         const wordCount = trimmed.split(/\s+/).length;
         if (wordCount > 5000) {
             throw new Error('Content must be 5000 words or less.');
         }
-        
+
         return trimmed;
     }
 
@@ -517,16 +497,16 @@ class PromptStorage {
         if (!name || typeof name !== 'string') {
             throw new Error('Folder name is required.');
         }
-        
+
         const trimmed = name.trim();
         if (trimmed.length === 0) {
             throw new Error('Please enter a folder name.');
         }
-        
+
         if (trimmed.length > 50) {
             throw new Error('Folder name must be 50 characters or less.');
         }
-        
+
         return trimmed;
     }
 
@@ -536,7 +516,7 @@ class PromptStorage {
             const folders = await this.getAllFolders();
             const totalSize = JSON.stringify({ prompts, folders }).length;
             const storageLimit = chrome.storage.local.QUOTA_BYTES || 5242880; // 5MB
-            
+
             return {
                 promptCount: prompts.length,
                 folderCount: folders.length,
@@ -560,7 +540,6 @@ class PromptStorage {
                     id: 'home',
                     name: 'Home',
                     icon: '🏠',
-                    parentId: null,
                     createdAt: Date.now(),
                     color: null
                 }]
@@ -576,37 +555,29 @@ class PromptStorage {
         try {
             const folders = await this.getAllFolders();
             const issues = [];
-            
+
             // Check for home folder existence
             const homeFolder = folders.find(f => f.id === 'home');
             if (!homeFolder) {
                 issues.push('Home folder missing');
             }
-            
+
             // Check for duplicate folder IDs
             const folderIds = folders.map(f => f.id);
             const duplicateIds = folderIds.filter((id, index) => folderIds.indexOf(id) !== index);
             if (duplicateIds.length > 0) {
                 issues.push(`Duplicate folder IDs: ${duplicateIds.join(', ')}`);
             }
-            
+
             // Check for circular references
             for (const folder of folders) {
                 if (this.hasCircularReference(folder, folders)) {
                     issues.push(`Circular reference detected for folder: ${folder.name} (${folder.id})`);
                 }
             }
-            
-            // Check for orphaned folders (parent doesn't exist)
-            for (const folder of folders) {
-                if (folder.parentId && folder.parentId !== null && folder.parentId !== 'home') {
-                    const parent = folders.find(f => f.id === folder.parentId);
-                    if (!parent) {
-                        issues.push(`Orphaned folder: ${folder.name} (${folder.id}) - parent ${folder.parentId} not found`);
-                    }
-                }
-            }
-            
+
+            // Flat structure: no parent relationships to validate
+
             return {
                 isValid: issues.length === 0,
                 issues: issues,
@@ -627,14 +598,14 @@ class PromptStorage {
             const prompts = await this.getAllPrompts();
             const folders = await this.getAllFolders();
             const issues = [];
-            
+
             // Check for duplicate prompt IDs
             const promptIds = prompts.map(p => p.id);
             const duplicateIds = promptIds.filter((id, index) => promptIds.indexOf(id) !== index);
             if (duplicateIds.length > 0) {
                 issues.push(`Duplicate prompt IDs: ${duplicateIds.join(', ')}`);
             }
-            
+
             // Check for orphaned prompts (folder doesn't exist)
             const folderIds = folders.map(f => f.id);
             for (const prompt of prompts) {
@@ -642,14 +613,14 @@ class PromptStorage {
                     issues.push(`Orphaned prompt: ${prompt.title} (${prompt.id}) - folder ${prompt.folderId} not found`);
                 }
             }
-            
+
             // Check for invalid prompt data
             for (const prompt of prompts) {
                 if (!prompt.id || !prompt.title || !prompt.content) {
                     issues.push(`Invalid prompt data: ${prompt.title || 'No title'} (${prompt.id || 'No ID'})`);
                 }
             }
-            
+
             return {
                 isValid: issues.length === 0,
                 issues: issues,
@@ -671,7 +642,7 @@ class PromptStorage {
                 this.validateFolderIntegrity(),
                 this.validatePromptIntegrity()
             ]);
-            
+
             return {
                 isValid: folderValidation.isValid && promptValidation.isValid,
                 folders: folderValidation,
@@ -695,38 +666,24 @@ class PromptStorage {
     }
 
     hasCircularReference(folder, allFolders, visited = new Set()) {
-        if (visited.has(folder.id)) {
-            return true; // Circular reference detected
-        }
-        
-        if (!folder.parentId || folder.parentId === null || folder.parentId === 'home') {
-            return false; // Reached root, no cycle
-        }
-        
-        visited.add(folder.id);
-        const parent = allFolders.find(f => f.id === folder.parentId);
-        
-        if (!parent) {
-            return false; // Parent doesn't exist, not a cycle (orphaned)
-        }
-        
-        return this.hasCircularReference(parent, allFolders, visited);
+        // Flat structure: no circular references possible
+        return false;
     }
 
     async waitForStorageSync(timeout = 5000) {
         return new Promise((resolve, reject) => {
             const startTime = Date.now();
-            
+
             const checkSync = async () => {
                 try {
                     // Test read/write to ensure storage is accessible
                     const testKey = '_storage_sync_test_' + Date.now();
                     const testValue = { timestamp: Date.now() };
-                    
+
                     await chrome.storage.local.set({ [testKey]: testValue });
                     const result = await chrome.storage.local.get([testKey]);
                     await chrome.storage.local.remove([testKey]);
-                    
+
                     if (result[testKey] && result[testKey].timestamp === testValue.timestamp) {
                         resolve(true);
                     } else {
@@ -741,7 +698,7 @@ class PromptStorage {
                     }
                 }
             };
-            
+
             checkSync();
         });
     }
@@ -750,26 +707,26 @@ class PromptStorage {
     async batchSavePromptsWithValidation(promptsData) {
         try {
             console.log('🔄 Starting validated batch save for', promptsData.length, 'prompts');
-            
+
             // Validate input data
             if (!Array.isArray(promptsData) || promptsData.length === 0) {
                 throw new Error('Invalid prompts data provided');
             }
-            
+
             // Wait for storage to be ready
             await this.waitForStorageSync();
-            
+
             // Get current data
             const [currentPrompts, currentFolders] = await Promise.all([
                 this.getAllPrompts(),
                 this.getAllFolders()
             ]);
-            
+
             console.log('📊 Current storage state:', {
                 prompts: currentPrompts.length,
                 folders: currentFolders.length
             });
-            
+
             // Validate folder references
             const folderIds = currentFolders.map(f => f.id);
             const validatedPrompts = promptsData.map(promptData => {
@@ -785,15 +742,15 @@ class PromptStorage {
                     updatedAt: Date.now(),
                     order: promptData.order || Date.now()
                 };
-                
+
                 console.log('✨ Created validated prompt:', newPrompt.title, 'with ID:', newPrompt.id);
                 return newPrompt;
             });
-            
+
             // Combine and save
             const allPrompts = [...currentPrompts, ...validatedPrompts];
             console.log('📦 Total prompts to save:', allPrompts.length);
-            
+
             // Use a promise-based approach for storage
             return new Promise((resolve, reject) => {
                 chrome.storage.local.set({ [this.storageKey]: allPrompts }, () => {
@@ -814,19 +771,19 @@ class PromptStorage {
     async batchSaveFoldersWithValidation(foldersData) {
         try {
             console.log('🔄 Starting validated batch save for', foldersData.length, 'folders');
-            
+
             // Validate input data
             if (!Array.isArray(foldersData) || foldersData.length === 0) {
                 throw new Error('Invalid folders data provided');
             }
-            
+
             // Wait for storage to be ready
             await this.waitForStorageSync();
-            
+
             // Get current folders
             const currentFolders = await this.getAllFolders();
             console.log('📊 Current folders in storage:', currentFolders.length);
-            
+
             // Validate and process folder data
             const validatedFolders = foldersData.map(folderData => {
                 const newFolder = {
@@ -837,15 +794,15 @@ class PromptStorage {
                     createdAt: folderData.createdAt || Date.now(),
                     color: folderData.color || null
                 };
-                
+
                 console.log('✨ Created validated folder:', newFolder.name, 'with ID:', newFolder.id);
                 return newFolder;
             });
-            
+
             // Combine and save
             const allFolders = [...currentFolders, ...validatedFolders];
             console.log('📦 Total folders to save:', allFolders.length);
-            
+
             // Use a promise-based approach for storage
             return new Promise((resolve, reject) => {
                 chrome.storage.local.set({ [this.foldersKey]: allFolders }, () => {
