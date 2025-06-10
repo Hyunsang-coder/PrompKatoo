@@ -190,6 +190,8 @@ body {
     padding: 14px 16px 8px;
     border-bottom: 1px solid #f1f5f9;
     flex-shrink: 0;
+    max-height: 40vh;
+    overflow-y: auto;
 }
 
 .folder-grid {
@@ -601,10 +603,13 @@ body {
 
 .form-actions {
     display: flex;
-    gap: 16px; /* 버튼 간 간격 증가 */
+    gap: 16px;
+    /* 버튼 간 간격 증가 */
     justify-content: flex-end;
-    margin-top: 32px; /* 상단 마진 증가 */
-    padding: 20px 24px 24px 24px; /* 패딩 증가 */
+    margin-top: 32px;
+    /* 상단 마진 증가 */
+    padding: 20px 24px 24px 24px;
+    /* 패딩 증가 */
     margin: 0 -24px -24px -24px;
     border-top: 1px solid #f3f4f6;
     background-color: #fafbfc;
@@ -726,7 +731,8 @@ body {
 }
 
 /* 사이드 패널 전용 스타일 */
-html, body {
+html,
+body {
     height: 100%;
     overflow-x: hidden;
 }
@@ -749,8 +755,8 @@ html, body {
 }
 
 /* 컨텐츠 센터링 및 균등 간격 */
-.prompts-container > *,
-.folders-container > * {
+.prompts-container>*,
+.folders-container>* {
     margin-left: 0;
     margin-right: 0;
 }
@@ -828,7 +834,8 @@ html, body {
 
 /* 폴더 모달 전용 스타일 */
 #folderModal .modal-content {
-    max-width: 320px; /* 사이드 패널에 맞게 조정 */
+    max-width: 320px;
+    /* 사이드 패널에 맞게 조정 */
 }
 
 #folderForm {
@@ -836,7 +843,8 @@ html, body {
 }
 
 #folderForm .form-group {
-    margin-bottom: 24px; /* 섹션 간 간격 증가 */
+    margin-bottom: 24px;
+    /* 섹션 간 간격 증가 */
 }
 
 #folderForm .char-count {
@@ -846,9 +854,12 @@ html, body {
 
 .icon-selector {
     display: grid;
-    grid-template-columns: repeat(6, 1fr); /* 더 많은 열로 공간 절약 */
-    gap: 8px; /* 간격 축소 */
-    padding: 12px; /* 패딩 축소 */
+    grid-template-columns: repeat(6, 1fr);
+    /* 더 많은 열로 공간 절약 */
+    gap: 8px;
+    /* 간격 축소 */
+    padding: 12px;
+    /* 패딩 축소 */
     background-color: #f8fafc;
     border-radius: 8px;
     margin-top: 8px;
@@ -858,20 +869,24 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px; /* 더 작게 조정 */
+    width: 32px;
+    /* 더 작게 조정 */
     height: 32px;
     border: 2px solid transparent;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 16px; /* 폰트 크기 축소 */
+    font-size: 16px;
+    /* 폰트 크기 축소 */
     transition: all 0.2s;
     background-color: white;
-    min-width: 32px; /* 최소 너비 조정 */
+    min-width: 32px;
+    /* 최소 너비 조정 */
 }
 
 .icon-option:hover {
     border-color: #cbd5e1;
-    transform: scale(1.05); /* 덜 aggressive한 스케일 */
+    transform: scale(1.05);
+    /* 덜 aggressive한 스케일 */
 }
 
 .icon-option.selected {
@@ -1113,7 +1128,7 @@ html, body {
     background-color: #f9fafb;
 }
 
-.radio-option input[type="radio"]:checked + .radio-label {
+.radio-option input[type="radio"]:checked+.radio-label {
     color: #1f2937;
 }
 
