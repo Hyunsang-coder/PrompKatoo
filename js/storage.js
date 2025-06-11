@@ -448,15 +448,6 @@ class PromptStorage {
         }
     }
 
-    async clearAllData() {
-        try {
-            await chrome.storage.local.remove([this.storageKey]);
-            return true;
-        } catch (error) {
-            console.error('Failed to clear data:', error);
-            throw new Error('Unable to clear data.');
-        }
-    }
 
     validateTitle(title) {
         if (!title || typeof title !== 'string') {
