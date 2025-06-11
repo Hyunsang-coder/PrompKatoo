@@ -1769,6 +1769,11 @@ class FolderPromptManager {
             });
 
             if (importMode === 'replace') {
+                const confirmed = window.confirm('⚠️ WARNING: Replace mode will permanently delete ALL existing prompts and folders. This action cannot be undone. Are you sure you want to continue?');
+                if (!confirmed) {
+                    console.log('🚫 User cancelled replace operation');
+                    return;
+                }
                 console.log('🗑️ Clearing all existing data...');
                 await promptStorage.clearAllData();
                 console.log('✅ Existing data cleared');
