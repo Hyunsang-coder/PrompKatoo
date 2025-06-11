@@ -660,13 +660,13 @@ body {
 
 .form-actions {
     display: flex;
-    gap: 16px;
+    gap: 20px;
     /* 버튼 간 간격 증가 */
     justify-content: flex-end;
     margin-top: 32px;
     /* 상단 마진 증가 */
-    padding: 20px 24px 24px 24px;
-    /* 패딩 증가 */
+    padding: 24px 24px 28px 24px;
+    /* 패딩 증가로 시각적 균형 개선 */
     margin: 0 -24px -24px -24px;
     border-top: 1px solid #f3f4f6;
     background-color: #fafbfc;

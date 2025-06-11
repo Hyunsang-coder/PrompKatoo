@@ -1446,7 +1446,10 @@ class FolderPromptManager {
             const variable = input.dataset.variable;
             const inputValue = input.value.trim();
             const defaultValue = this.variableDefaults[variable] || '';
-            values[variable] = inputValue || defaultValue;
+            const placeholderValue = input.placeholder || '';
+            
+            // 우선순위: 입력값 > 기본값 > 플레이스홀더 > 변수명
+            values[variable] = inputValue || defaultValue || placeholderValue || variable;
         });
 
         return values;
