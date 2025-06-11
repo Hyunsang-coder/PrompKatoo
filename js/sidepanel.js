@@ -251,34 +251,20 @@ class FolderPromptManager {
             breadcrumbItems.push(currentFolder);
         }
 
-        this.elements.breadcrumbContainer.innerHTML = '';
-        
-        breadcrumbItems.forEach((item, index) => {
+        const breadcrumbHtml = breadcrumbItems.map((item, index) => {
             const isActive = item.id === this.currentFolderId;
-            
-            const button = document.createElement('button');
-            button.className = `breadcrumb-item ${isActive ? 'active' : ''}`;
-            button.dataset.folderId = item.id;
-            
-            const icon = document.createElement('span');
-            icon.className = 'breadcrumb-icon';
-            icon.textContent = item.icon;
-            
-            const text = document.createElement('span');
-            text.className = 'breadcrumb-text';
-            text.textContent = item.name;
-            
-            button.appendChild(icon);
-            button.appendChild(text);
-            this.elements.breadcrumbContainer.appendChild(button);
-            
-            if (index < breadcrumbItems.length - 1) {
-                const separator = document.createElement('span');
-                separator.className = 'breadcrumb-separator';
-                separator.textContent = '>';
-                this.elements.breadcrumbContainer.appendChild(separator);
-            }
-        });
+            const separator = index < breadcrumbItems.length - 1 ? '<span class="breadcrumb-separator">></span>' : '';
+
+            return `
+                <button class="breadcrumb-item ${isActive ? 'active' : ''}" data-folder-id="${item.id}">
+                    <span class="breadcrumb-icon">${item.icon}</span>
+                    <span class="breadcrumb-text">${sanitizeHtml(item.name)}</span>
+                </button>
+                ${separator}
+            `;
+        }).join('');
+
+        this.elements.breadcrumbContainer.innerHTML = breadcrumbHtml;
 
         // Bind breadcrumb navigation events
         this.elements.breadcrumbContainer.querySelectorAll('.breadcrumb-item').forEach(item => {
@@ -326,16 +312,13 @@ class FolderPromptManager {
                 return (a.createdAt || 0) - (b.createdAt || 0);
             });
 
-            const folderGrid = document.createElement('div');
-            folderGrid.className = 'folder-grid';
-            
-            foldersWithCounts.forEach(folder => {
-                const folderCard = this.createFolderCardElement(folder);
-                folderGrid.appendChild(folderCard);
-            });
-            
-            this.elements.foldersContainer.innerHTML = '';
-            this.elements.foldersContainer.appendChild(folderGrid);
+            const folderGridHtml = `
+                <div class="folder-grid">
+                    ${foldersWithCounts.map(folder => this.createFolderCard(folder)).join('')}
+                </div>
+            `;
+
+            this.elements.foldersContainer.innerHTML = folderGridHtml;
             this.bindFolderEvents();
         } catch (error) {
             console.error('Failed to load folders:', error);
@@ -364,49 +347,6 @@ class FolderPromptManager {
                 </div>
             </div>
         `;
-    }
-
-    createFolderCardElement(folder) {
-        const promptText = folder.promptCount === 1 ? 'prompt' : 'prompts';
-        
-        const card = document.createElement('div');
-        card.className = 'folder-card';
-        card.dataset.folderId = folder.id;
-        card.draggable = true;
-        
-        const actions = document.createElement('div');
-        actions.className = 'folder-actions';
-        
-        const actionBtn = document.createElement('button');
-        actionBtn.className = 'folder-action-btn';
-        actionBtn.dataset.action = 'context';
-        actionBtn.dataset.folderId = folder.id;
-        actionBtn.setAttribute('aria-label', 'Options');
-        actionBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>`;
-        
-        const icon = document.createElement('span');
-        icon.className = 'folder-icon';
-        icon.textContent = folder.icon;
-        
-        const info = document.createElement('div');
-        info.className = 'folder-info';
-        
-        const name = document.createElement('div');
-        name.className = 'folder-name';
-        name.textContent = folder.name;
-        
-        const count = document.createElement('div');
-        count.className = 'folder-count';
-        count.textContent = `${folder.promptCount} ${promptText}`;
-        
-        actions.appendChild(actionBtn);
-        info.appendChild(name);
-        info.appendChild(count);
-        card.appendChild(actions);
-        card.appendChild(icon);
-        card.appendChild(info);
-        
-        return card;
     }
 
     bindFolderEvents() {
@@ -543,14 +483,11 @@ class FolderPromptManager {
         this.hideEmptyState();
 
         console.log('🏗️ Creating HTML for', prompts.length, 'prompts');
-        console.log('📝 Creating DOM elements for', prompts.length, 'prompts');
+        const promptsHtml = prompts.map(prompt => this.createPromptCard(prompt)).join('');
+        console.log('📝 Generated HTML length:', promptsHtml.length);
 
         console.log('🎯 Setting innerHTML for prompts container');
-        this.elements.promptsContainer.innerHTML = '';
-        prompts.forEach(prompt => {
-            const promptCard = this.createPromptCardElement(prompt);
-            this.elements.promptsContainer.appendChild(promptCard);
-        });
+        this.elements.promptsContainer.innerHTML = promptsHtml;
 
         console.log('🔗 Binding prompt events');
         this.bindPromptEvents();
@@ -560,9 +497,9 @@ class FolderPromptManager {
 
     createPromptCard(prompt) {
         const highlightedTitle = this.currentSearchTerm ?
-            highlightText(prompt.title, this.currentSearchTerm) : sanitizeHtml(prompt.title);
+            highlightText(prompt.title, this.currentSearchTerm) : prompt.title;
         const highlightedContent = this.currentSearchTerm ?
-            highlightText(prompt.content, this.currentSearchTerm) : sanitizeHtml(prompt.content);
+            highlightText(prompt.content, this.currentSearchTerm) : prompt.content;
 
         const variablesHtml = prompt.variables.length > 0 ?
             `<div class="prompt-variables">
@@ -609,128 +546,6 @@ class FolderPromptManager {
                 ${variablesHtml}
             </div>
         `;
-    }
-
-    createPromptCardElement(prompt) {
-        const card = document.createElement('div');
-        card.className = `prompt-card ${prompt.isFavorite ? 'favorite' : ''}`;
-        card.dataset.id = prompt.id;
-        card.draggable = true;
-        
-        const header = document.createElement('div');
-        header.className = 'prompt-header';
-        
-        const title = document.createElement('h3');
-        title.className = 'prompt-title';
-        
-        if (this.currentSearchTerm) {
-            title.innerHTML = highlightText(prompt.title, this.currentSearchTerm);
-        } else {
-            title.textContent = prompt.title;
-        }
-        
-        const showFolderPath = prompt.folderPath && (this.currentFolderId === 'home' || this.currentSearchTerm);
-        if (showFolderPath) {
-            const folderPath = document.createElement('span');
-            folderPath.className = 'folder-path';
-            folderPath.textContent = prompt.folderPath;
-            title.appendChild(folderPath);
-        }
-        
-        const actions = this.createPromptActions(prompt);
-        
-        const content = document.createElement('p');
-        content.className = 'prompt-content';
-        if (this.currentSearchTerm) {
-            content.innerHTML = highlightText(prompt.content, this.currentSearchTerm);
-        } else {
-            content.textContent = prompt.content;
-        }
-        
-        header.appendChild(title);
-        header.appendChild(actions);
-        card.appendChild(header);
-        card.appendChild(content);
-        
-        if (prompt.variables.length > 0) {
-            const variables = this.createVariablesElement(prompt.variables);
-            card.appendChild(variables);
-        }
-        
-        return card;
-    }
-
-    createPromptActions(prompt) {
-        const actions = document.createElement('div');
-        actions.className = 'prompt-actions';
-        
-        const favoriteBtn = document.createElement('button');
-        favoriteBtn.className = `action-btn favorite-btn ${prompt.isFavorite ? 'active' : ''}`;
-        favoriteBtn.dataset.action = 'favorite';
-        favoriteBtn.dataset.id = prompt.id;
-        favoriteBtn.setAttribute('aria-label', prompt.isFavorite ? 'Remove from favorites' : 'Add to favorites');
-        favoriteBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="${prompt.isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon></svg>`;
-        
-        const editBtn = document.createElement('button');
-        editBtn.className = 'action-btn edit-btn';
-        editBtn.dataset.action = 'edit';
-        editBtn.dataset.id = prompt.id;
-        editBtn.setAttribute('aria-label', 'Edit');
-        editBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
-        
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'action-btn delete-btn';
-        deleteBtn.dataset.action = 'delete';
-        deleteBtn.dataset.id = prompt.id;
-        deleteBtn.setAttribute('aria-label', 'Delete');
-        deleteBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"></polyline><path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6m3,0V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6"></path></svg>`;
-        
-        actions.appendChild(favoriteBtn);
-        actions.appendChild(editBtn);
-        actions.appendChild(deleteBtn);
-        
-        return actions;
-    }
-
-    createVariablesElement(variables) {
-        const container = document.createElement('div');
-        container.className = 'prompt-variables';
-        
-        variables.forEach(variable => {
-            const tag = document.createElement('span');
-            tag.className = 'variable-tag';
-            tag.textContent = `[${variable}]`;
-            container.appendChild(tag);
-        });
-        
-        return container;
-    }
-
-    renderVariableContent(html) {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = html;
-        
-        const walker = document.createTreeWalker(
-            tempDiv,
-            NodeFilter.SHOW_ALL,
-            null,
-            false
-        );
-        
-        let node;
-        while (node = walker.nextNode()) {
-            if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains('variable-inline')) {
-                const input = node.querySelector('.variable-input');
-                if (input) {
-                    input.addEventListener('input', () => this.autoResizeInput(input));
-                    input.addEventListener('focus', () => this.onVariableFocus(input));
-                    input.addEventListener('blur', () => this.onVariableBlur(input));
-                    this.autoResizeInput(input);
-                }
-            }
-        }
-        
-        this.elements.promptContentEditable.appendChild(tempDiv);
     }
 
     bindPromptEvents() {
@@ -1590,8 +1405,7 @@ class FolderPromptManager {
             html = html.replace(regex, variableHtml);
         });
 
-        this.elements.promptContentEditable.innerHTML = '';
-        this.renderVariableContent(html);
+        this.elements.promptContentEditable.innerHTML = html;
 
         this.elements.promptContentEditable.querySelectorAll('.variable-input').forEach(input => {
             input.addEventListener('input', () => this.autoResizeInput(input));

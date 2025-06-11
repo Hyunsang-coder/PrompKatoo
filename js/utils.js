@@ -126,12 +126,10 @@ function debounce(func, wait, immediate) {
 }
 
 function highlightText(text, searchTerm) {
-    if (!searchTerm || !text) return sanitizeHtml(text);
+    if (!searchTerm || !text) return text;
 
-    const escapedText = sanitizeHtml(text);
-    const escapedSearchTerm = escapeRegExp(sanitizeHtml(searchTerm));
-    const regex = new RegExp(`(${escapedSearchTerm})`, 'gi');
-    return escapedText.replace(regex, '<span class="highlight">$1</span>');
+    const regex = new RegExp(`(${escapeRegExp(searchTerm)})`, 'gi');
+    return text.replace(regex, '<span class="highlight">$1</span>');
 }
 
 function truncateText(text, maxLength = 100) {
