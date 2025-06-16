@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Promcatoo: Free Prompt Manager",
-  "version": "1.0.0",
-  "description": "Completely free prompt manager for Chrome.",
+  "name": "PromKatoo: AI Prompt Manager",
+  "version": "1.0.1",
+  "description": "Free AI Prompt Manager for Chrome. Organize, search, and reuse prompts for ChatGPT, Claude, Gemini, and more.",
   "permissions": [
     "storage",
     "sidePanel"
@@ -11,7 +11,7 @@
     "service_worker": "js/background.js"
   },
   "action": {
-    "default_title": "Open Prompt Manager"
+    "default_title": "AI Prompt Manager"
   },
   "side_panel": {
     "default_path": "sidepanel.html"
